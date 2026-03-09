@@ -40,7 +40,7 @@ export class WebhookConfigsResource extends BaseResource {
   }
 
   async update(id: string, params: UpdateWebhookConfigParams): Promise<WebhookConfig> {
-    const response = await this.httpClient.put<SingleApiResponse<'Webhook', WebhookConfig>>(
+    const response = await this.httpClient.post<SingleApiResponse<'Webhook', WebhookConfig>>(
       `/webhook/${id}`,
       params,
     );
