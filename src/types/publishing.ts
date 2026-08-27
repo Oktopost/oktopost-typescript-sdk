@@ -218,6 +218,9 @@ export interface CreatePostParams {
   credentialIds: string;
   startDateTime?: number;
   status?: 'pending' | 'inqueue' | 'draft' | 'inqueue-draft';
+  targetingPresetId?: string;
+  workflowId?: string;
+  firstComment?: string;
 }
 
 export interface UpdatePostParams {
@@ -225,6 +228,13 @@ export interface UpdatePostParams {
   credentialIds?: string;
   startDateTime?: number;
   status?: 'pending' | 'inqueue' | 'draft' | 'inqueue-draft';
+  targetingPresetId?: string;
+  workflowId?: string;
+  firstComment?: string;
+}
+
+export interface ChangePostCampaignParams {
+  campaignId: string;
 }
 
 export interface PostlogStats {
@@ -315,6 +325,7 @@ export interface UploadListParams extends PaginationParams {
 export interface CreateUploadParams {
   source: string;
   name?: string;
+  /** MIME type of the upload, e.g. `image/jpeg`, `video/mp4`, or `application/pdf`. */
   mimeType?: string;
 }
 
@@ -404,6 +415,49 @@ export interface CalendarResponse {
   Media: unknown[];
   Messages: Record<string, CalendarMessage>;
   Posts: Record<string, CalendarPost>;
+  CustomEvents: CustomCalendarEvent[];
+}
+
+export interface CustomCalendarEventCampaign {
+  Id: string;
+  Name: string;
+}
+
+export interface CustomCalendarEvent {
+  ID: string;
+  Created: string;
+  Modified: string;
+  AccountID: string;
+  Title: string;
+  Description: string;
+  Color: string;
+  StartDateTime: string;
+  EndDateTime: string;
+  Campaigns: CustomCalendarEventCampaign[];
+}
+
+export interface CustomCalendarEventListParams extends PaginationParams {
+  ids?: string[];
+  campaignIds?: string[];
+  after?: number;
+  before?: number;
+}
+
+export interface CreateCustomCalendarEventParams {
+  title: string;
+  description?: string;
+  startDate: number;
+  endDate?: number;
+  campaignIds?: string[];
+}
+
+export interface UpdateCustomCalendarEventParams {
+  id: string;
+  title?: string;
+  description?: string;
+  startDate?: number;
+  endDate?: number;
+  campaignIds?: string[];
 }
 
 export interface Tag {

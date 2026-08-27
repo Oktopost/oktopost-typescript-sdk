@@ -56,7 +56,7 @@ export type PostSource = 'UI' | 'API' | 'Autoposter' | 'Bookmarklet' | 'Board' |
 
 export type UserRole = 'admin' | 'publisher' | 'contributor' | 'read';
 
-export type MediaType = 'Image' | 'Video' | 'ImageUrl';
+export type MediaType = 'Image' | 'Video' | 'ImageUrl' | 'PDF';
 
 export type UploadStatus = 'pending' | 'failed' | 'complete';
 

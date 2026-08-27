@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.0
+
+Brings the SDK to parity with Oktopost API v2.18.0.
+
+### Added
+
+- **Inbox**: `client.inbox.conversations` (list, get, updateStatus, getTimeline, assign, addNote, updateTags, reply, createSalesforceCase), `client.inbox.conversationTags` (list, get, update, delete), and `client.inbox.cannedResponses` (list, get, create).
+- **Media namespace**: new `client.media` grouping `media`, `uploads`, and a new `folders` resource (list, get, create, rename, delete). `client.publishing.media` and `client.publishing.uploads` remain as deprecated aliases.
+- **Analytics**: `client.analytics.dashboards` (list, get, getReportData) for Social BI dashboards.
+- **Publishing**: `client.publishing.posts.changeCampaign()` to move a post to another campaign; `client.publishing.calendar.customEvents` sub-resource (list, get, create, update, delete) for custom calendar events; `firstComment`, `targetingPresetId`, and `workflowId` parameters on create/update post.
+- **Account**: `client.account.socialProfiles.listTargetingPresets()` for LinkedIn audience targeting presets; `q` name-search and pagination/sorting params on `client.account.users.list()`.
+- **Advocacy**: `client.advocacy.advocates.bulkInvite()` (up to 100 entries with partial `Errors`); `boardId`, `lastSeen`, `notSeen`, `neverSeen`, and pagination filters on advocate list, plus board-scoped list fields (`Shares`, `LastSeen`, `Role`, `RoleId`, `CustomFields`, `Leaderboards`); `postlogId` on story create for LinkedIn repost stories.
+- **Leads**: `all_leads` parameter on lead list; `PostlogId` on lead activities.
+- **Media types**: `PDF` added to the media type filter and supported upload MIME types.
+- **Webhooks**: new inbox engagement event types (`newInboxItem`, `newCommentOnInboxItem`, `newDirectMessageOnInboxItem`, `inboxItemReplied`, `newNoteOnInboxItem`, `newInboxItemAssignment`, `inboxItemStatusChange`, `inboxItemTagChange`).
+
+### Changed
+
+- `client.advocacy.advocates.invite()` now returns the API's `Users` response shape and supports re-invite via `userId` plus optional `message`/`role`.
+
 ## 1.0.0
 
 Initial release of the Oktopost Node.js SDK.

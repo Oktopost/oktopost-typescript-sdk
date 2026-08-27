@@ -15,6 +15,25 @@ describe('LeadActivitiesResource', () => {
     expect(result).toEqual(mockResponse);
   });
 
+  it('returns activities including PostlogId', async () => {
+    const http = createMockHttpClient();
+    const activities = new LeadActivitiesResource(http);
+    const mockResponse = {
+      Result: true,
+      Items: [
+        { Id: 'la1', PostlogId: '007000000000000' },
+        { Id: 'la2', PostlogId: null },
+      ],
+      Total: 2,
+    };
+    (http.get as any).mockResolvedValue(mockResponse);
+
+    const result = await activities.list();
+
+    expect(result.Items[0].PostlogId).toBe('007000000000000');
+    expect(result.Items[1].PostlogId).toBeNull();
+  });
+
   it('listAll yields all items', async () => {
     const http = createMockHttpClient();
     const activities = new LeadActivitiesResource(http);

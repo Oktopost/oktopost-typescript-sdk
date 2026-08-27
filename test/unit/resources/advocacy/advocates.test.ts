@@ -54,16 +54,65 @@ describe('AdvocatesResource', () => {
     expect(items).toHaveLength(2);
   });
 
-  it('invite calls POST /advocate', async () => {
+  it('invite calls POST /advocate and returns invited Users', async () => {
     const http = createMockHttpClient();
     const advocates = new AdvocatesResource(http);
-    (http.post as any).mockResolvedValue({ Result: true });
+    const mockResponse = {
+      Result: true,
+      Users: [{ Id: 'a1', Name: 'John Doe', Email: 'john@example.com' }],
+    };
+    (http.post as any).mockResolvedValue(mockResponse);
 
     const params = { firstName: 'John', lastName: 'Doe', email: 'john@example.com', boardId: 'b1' };
     const result = await advocates.invite(params);
 
     expect(http.post).toHaveBeenCalledWith('/advocate', params);
-    expect(result.Result).toBe(true);
+    expect(result).toEqual(mockResponse);
+    expect(result.Users[0].Email).toBe('john@example.com');
+  });
+
+  it('invite supports re-invite by userId', async () => {
+    const http = createMockHttpClient();
+    const advocates = new AdvocatesResource(http);
+    (http.post as any).mockResolvedValue({ Result: true, Users: [] });
+
+    const params = { userId: 'a1', boardId: 'b1', message: 'Reminder' };
+    await advocates.invite(params);
+
+    expect(http.post).toHaveBeenCalledWith('/advocate', params);
+  });
+
+  it('bulkInvite calls POST /advocate/bulk and returns Users and Errors', async () => {
+    const http = createMockHttpClient();
+    const advocates = new AdvocatesResource(http);
+    const mockResponse = {
+      Result: true,
+      Users: [{ Id: 'a1', Name: 'Jimmy Mcgill', Email: 'saul@goodman.com' }],
+      Errors: [
+        {
+          Id: 3,
+          Data: { email: 'bad-email', firstName: 'Bad', lastName: 'Email' },
+          ErrorField: 'email',
+          ErrorMessage: 'Invalid email address',
+        },
+      ],
+    };
+    (http.post as any).mockResolvedValue(mockResponse);
+
+    const params = {
+      boardId: 'b1',
+      message: 'Welcome',
+      users: [
+        { userId: 'a1' },
+        { email: 'user@oktopost.com', firstName: 'User', lastName: 'Smith' },
+        { email: 'bad-email', firstName: 'Bad', lastName: 'Email' },
+      ],
+    };
+    const result = await advocates.bulkInvite(params);
+
+    expect(http.post).toHaveBeenCalledWith('/advocate/bulk', params);
+    expect(result).toEqual(mockResponse);
+    expect(result.Errors?.[0].Id).toBe(3);
   });
 
   it('delete calls DELETE /advocate/{id} with boardId query', async () => {

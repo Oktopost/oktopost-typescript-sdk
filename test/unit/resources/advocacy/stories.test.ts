@@ -56,6 +56,17 @@ describe('StoriesResource', () => {
     expect(result.Result).toBe(true);
   });
 
+  it('create forwards postlogId for repost stories', async () => {
+    const http = createMockHttpClient();
+    const stories = new StoriesResource(http);
+    (http.post as any).mockResolvedValue({ Result: true });
+
+    const params = { boardId: 'b1', title: 'Repost', description: 'Desc', campaignId: 'c1', postlogId: '007x' };
+    await stories.create(params);
+
+    expect(http.post).toHaveBeenCalledWith('/story', params);
+  });
+
   it('update calls POST /story/{id}', async () => {
     const http = createMockHttpClient();
     const stories = new StoriesResource(http);

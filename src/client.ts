@@ -3,6 +3,7 @@ import { AccountNamespace } from './resources/account/index.js';
 import { PublishingNamespace } from './resources/publishing/index.js';
 import { AnalyticsNamespace } from './resources/analytics/index.js';
 import { InboxNamespace } from './resources/inbox/index.js';
+import { MediaNamespace } from './resources/media/index.js';
 import { AdvocacyNamespace } from './resources/advocacy/index.js';
 import { ApprovalsNamespace } from './resources/approvals/index.js';
 import { StreamsNamespace } from './resources/streams/index.js';
@@ -33,6 +34,7 @@ export class Oktopost {
   readonly publishing: PublishingNamespace;
   readonly analytics: AnalyticsNamespace;
   readonly inbox: InboxNamespace;
+  readonly media: MediaNamespace;
   readonly advocacy: AdvocacyNamespace;
   readonly approvals: ApprovalsNamespace;
   readonly streams: StreamsNamespace;
@@ -61,7 +63,11 @@ export class Oktopost {
     });
 
     this.account = new AccountNamespace(this.httpClient);
-    this.publishing = new PublishingNamespace(this.httpClient);
+    this.media = new MediaNamespace(this.httpClient);
+    this.publishing = new PublishingNamespace(this.httpClient, {
+      media: this.media.media,
+      uploads: this.media.uploads,
+    });
     this.analytics = new AnalyticsNamespace(this.httpClient);
     this.inbox = new InboxNamespace(this.httpClient);
     this.advocacy = new AdvocacyNamespace(this.httpClient);

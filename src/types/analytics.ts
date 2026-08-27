@@ -1,3 +1,5 @@
+import type { PaginatedApiResponse, PaginationParams } from './common.js';
+
 export interface PostAnalyticsStats {
   LinkClicks: number;
   Conversions: number;
@@ -94,4 +96,60 @@ export interface ExportListParams {
   _page?: number;
   _order?: string;
   status?: 'active' | 'inactive';
+}
+
+export type DashboardVisibility = 'shared' | 'private';
+
+export interface DashboardListItem {
+  Id: string;
+  Name: string;
+  Description: string;
+  Visibility: DashboardVisibility;
+  CreatedBy: string;
+  Created: string;
+  IsFavorite: boolean;
+  CreatorName: string;
+  LinkSharingVisibility: string;
+}
+
+export interface DashboardWidget {
+  Id: string;
+  Type: string;
+  Name: string;
+  Description: string;
+  ChartType: string;
+  Source: string;
+  X: number;
+  Y: number;
+  Width: number;
+  Height: number;
+}
+
+export interface Dashboard {
+  Id: string;
+  Name: string;
+  Description: string;
+  Type: string;
+  Visibility: DashboardVisibility;
+  Widgets: DashboardWidget[];
+  Teams: unknown[];
+}
+
+export interface DashboardListParams extends PaginationParams {
+  search?: string;
+  visibility?: DashboardVisibility;
+}
+
+export interface DashboardListResponse extends PaginatedApiResponse<DashboardListItem> {
+  TotalUnfiltered: number;
+}
+
+export interface DashboardReportParams {
+  id: string;
+  filter?: Record<string, unknown>;
+}
+
+export interface DashboardReportData {
+  Data: unknown[];
+  Entities: Record<string, unknown>;
 }

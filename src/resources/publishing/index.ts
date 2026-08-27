@@ -14,19 +14,24 @@ export class PublishingNamespace {
   readonly messages: MessagesResource;
   readonly posts: PostsResource;
   readonly postLog: PostLogResource;
+  /** @deprecated use client.media.media */
   readonly media: MediaResource;
+  /** @deprecated use client.media.uploads */
   readonly uploads: UploadsResource;
   readonly calendar: CalendarResource;
   readonly tags: TagsResource;
   readonly links: LinksResource;
 
-  constructor(httpClient: BaseHttpClient) {
+  constructor(
+    httpClient: BaseHttpClient,
+    injected?: { media?: MediaResource; uploads?: UploadsResource },
+  ) {
     this.campaigns = new CampaignsResource(httpClient);
     this.messages = new MessagesResource(httpClient);
     this.posts = new PostsResource(httpClient);
     this.postLog = new PostLogResource(httpClient);
-    this.media = new MediaResource(httpClient);
-    this.uploads = new UploadsResource(httpClient);
+    this.media = injected?.media ?? new MediaResource(httpClient);
+    this.uploads = injected?.uploads ?? new UploadsResource(httpClient);
     this.calendar = new CalendarResource(httpClient);
     this.tags = new TagsResource(httpClient);
     this.links = new LinksResource(httpClient);
@@ -39,6 +44,6 @@ export { PostsResource } from './posts.js';
 export { PostLogResource } from './post-log.js';
 export { MediaResource } from './media.js';
 export { UploadsResource } from './uploads.js';
-export { CalendarResource } from './calendar.js';
+export { CalendarResource, CalendarCustomEventsResource } from './calendar.js';
 export { TagsResource } from './tags.js';
 export { LinksResource } from './links.js';

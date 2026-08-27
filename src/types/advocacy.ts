@@ -1,3 +1,5 @@
+import type { PaginationParams } from './common.js';
+
 export interface AdvocateProfile {
   Id: string;
   Created: string;
@@ -47,16 +49,45 @@ export interface Advocate {
   LatestShares?: AdvocateShare[];
 }
 
+export interface AdvocateCustomField {
+  FieldId: string;
+  FieldName: string;
+  Option: Record<string, unknown>;
+}
+
 export interface AdvocateListItem {
   Email: string;
   Id: string;
   LastBoardLogin: string;
   Name: string;
   PictureUrl: string | null;
+  /** Only present when `boardId` is provided. */
+  LastSeen?: string;
+  /** Only present when `boardId` is provided. */
+  Shares?: number;
+  /** Only present when `boardId` is provided. */
+  RoleId?: string;
+  /** Only present when `boardId` is provided. */
+  Role?: string;
+  /** Only present when `boardId` is provided. */
+  CustomFields?: AdvocateCustomField[];
+  /** Only present when `boardId` is provided. */
+  Leaderboards?: unknown[];
 }
 
-export interface AdvocateListParams {
+export interface AdvocateListParams extends PaginationParams {
   email?: string;
+  /**
+   * Scope results to a specific board. Enables the activity filters below and
+   * additional response fields (Shares, LastSeen, Role, RoleId, CustomFields, Leaderboards).
+   */
+  boardId?: string;
+  /** Integer (1–365). Return advocates seen within the last N days. Requires `boardId`. */
+  lastSeen?: number;
+  /** Integer (1–365). Return advocates NOT seen within the last N days. Requires `boardId`. */
+  notSeen?: number;
+  /** Return advocates who have never logged in to the board. Requires `boardId`. */
+  neverSeen?: boolean;
 }
 
 export interface AdvocateGetParams {
@@ -64,10 +95,67 @@ export interface AdvocateGetParams {
 }
 
 export interface InviteAdvocateParams {
-  firstName: string;
-  lastName: string;
-  email: string;
+  /** Required. Board to invite the advocate to. */
   boardId: string;
+  /** Required for a new invite. Mutually exclusive with `userId`. */
+  email?: string;
+  /** Required for a re-invite. Mutually exclusive with `email`. */
+  userId?: string;
+  /** Required for a new invite (with `email`). */
+  firstName?: string;
+  /** Required for a new invite (with `email`). */
+  lastName?: string;
+  /** Board role for the new invite. Ignored for re-invite. */
+  role?: string;
+  /** Optional note attached to the invite. */
+  message?: string;
+}
+
+export interface InvitedAdvocateUser {
+  Id: string;
+  Name: string;
+  Email: string;
+}
+
+export interface InviteAdvocatesResponse {
+  Result: boolean;
+  Users: InvitedAdvocateUser[];
+}
+
+export interface BulkInviteAdvocateEntry {
+  /** New invite. Requires `firstName` and `lastName`. Mutually exclusive with `userId`. */
+  email?: string;
+  /** Re-invite an existing board advocate. Mutually exclusive with `email`. */
+  userId?: string;
+  /** Required with `email`. */
+  firstName?: string;
+  /** Required with `email`. */
+  lastName?: string;
+  /** Board role for a new invite. */
+  role?: string;
+}
+
+export interface BulkInviteAdvocatesParams {
+  /** Required. Board to invite advocates to. */
+  boardId: string;
+  /** Required. Array of 1–100 invite entries. */
+  users: BulkInviteAdvocateEntry[];
+  /** Optional note applied to all invites and re-invites in the batch. */
+  message?: string;
+}
+
+export interface BulkInviteAdvocateError {
+  /** 1-based index of the entry in `users`. */
+  Id: number;
+  Data: Record<string, unknown>;
+  ErrorField: string;
+  ErrorMessage: string;
+}
+
+export interface BulkInviteAdvocatesResponse {
+  Result: boolean;
+  Users: InvitedAdvocateUser[];
+  Errors?: BulkInviteAdvocateError[];
 }
 
 export interface BoardConfig {
@@ -134,6 +222,8 @@ export interface Story {
   LinkContent: string | null;
   Type: string;
   Status: string;
+  /** Present on repost stories created from a LinkedIn post. */
+  PostlogId?: string;
   ShareCount: number;
   AltTexts: string | null;
   VideoTitle: string | null;
@@ -165,6 +255,12 @@ export interface CreateStoryParams {
   expirationDatetime?: number;
   isDraft?: boolean;
   isFeatured?: boolean;
+  /**
+   * Postlog ID of a LinkedIn post to repost. When provided, the story is created
+   * as a repost (`type: post-attachment`); `title`/`description` become optional and
+   * `link`, `mediaIds`, and `messageIds` are ignored.
+   */
+  postlogId?: string;
   workflowId?: string;
 }
 

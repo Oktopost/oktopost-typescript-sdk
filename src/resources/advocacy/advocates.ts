@@ -6,6 +6,9 @@ import type {
   AdvocateListParams,
   AdvocateGetParams,
   InviteAdvocateParams,
+  InviteAdvocatesResponse,
+  BulkInviteAdvocatesParams,
+  BulkInviteAdvocatesResponse,
 } from '../../types/advocacy.js';
 
 export class AdvocatesResource extends BaseResource {
@@ -33,9 +36,16 @@ export class AdvocatesResource extends BaseResource {
     );
   }
 
-  async invite(params: InviteAdvocateParams): Promise<BaseApiResponse> {
-    return this.httpClient.post<BaseApiResponse>(
+  async invite(params: InviteAdvocateParams): Promise<InviteAdvocatesResponse> {
+    return this.httpClient.post<InviteAdvocatesResponse>(
       '/advocate',
+      params,
+    );
+  }
+
+  async bulkInvite(params: BulkInviteAdvocatesParams): Promise<BulkInviteAdvocatesResponse> {
+    return this.httpClient.post<BulkInviteAdvocatesResponse>(
+      '/advocate/bulk',
       params,
     );
   }
