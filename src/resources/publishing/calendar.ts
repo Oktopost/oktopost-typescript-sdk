@@ -65,9 +65,10 @@ export class CalendarResource extends BaseResource {
   }
 
   async get(params: CalendarParams): Promise<CalendarResponse> {
-    return this.httpClient.post<CalendarResponse>(
-      '/calendar',
-      params,
-    );
+    const { filters, ...rest } = params;
+    return this.httpClient.post<CalendarResponse>('/calendar', {
+      ...rest,
+      ...(filters ? { filters: JSON.stringify(filters) } : {}),
+    });
   }
 }

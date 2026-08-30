@@ -177,9 +177,7 @@ export class BaseHttpClient {
     const url = new URL(`${this.config.baseUrl}${path}`);
     if (params) {
       for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
-        }
+        this.appendEncoded(url.searchParams, key, value);
       }
     }
     return url.toString();
@@ -188,14 +186,34 @@ export class BaseHttpClient {
   private encodeFormBody(data: Record<string, unknown>): string {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined && value !== null) {
-        if (typeof value === 'object') {
-          params.set(key, JSON.stringify(value));
-        } else {
-          params.set(key, String(value));
-        }
-      }
+      this.appendEncoded(params, key, value);
     }
     return params.toString();
+  }
+
+  private appendEncoded(params: URLSearchParams, key: string, value: unknown): void {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      for (const [index, item] of value.entries()) {
+        if (item !== null && typeof item === 'object') {
+          this.appendEncoded(params, `${key}[${index}]`, item);
+        } else {
+          this.appendEncoded(params, `${key}[]`, item);
+        }
+      }
+      return;
+    }
+
+    if (typeof value === 'object') {
+      for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
+        this.appendEncoded(params, `${key}[${childKey}]`, childValue);
+      }
+      return;
+    }
+
+    params.append(key, String(value));
   }
 }

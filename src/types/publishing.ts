@@ -166,6 +166,16 @@ export interface PostStats {
   ImpressionsAdded: number;
 }
 
+export interface FirstComment {
+  Id: string;
+  Network: string;
+  Status: string;
+  ScheduledAt: number;
+  Text: string;
+  CampaignId: string;
+  Media: unknown[];
+}
+
 export interface Post {
   Id: string;
   Created: string;
@@ -197,6 +207,7 @@ export interface Post {
   Utm: string;
   Credentials: string;
   Stats?: PostStats;
+  FirstComment?: FirstComment;
 }
 
 export interface PostListParams extends PaginationParams {
@@ -213,6 +224,13 @@ export interface PostGetParams {
   stats?: 0 | 1;
 }
 
+export interface FirstCommentInput {
+  /** Comment text. Maximum 3000 characters. */
+  text?: string;
+  /** A single pre-uploaded image media ID. Images only. */
+  media?: string;
+}
+
 export interface CreatePostParams {
   messageId: string;
   credentialIds: string;
@@ -220,7 +238,7 @@ export interface CreatePostParams {
   status?: 'pending' | 'inqueue' | 'draft' | 'inqueue-draft';
   targetingPresetId?: string;
   workflowId?: string;
-  firstComment?: string;
+  firstComment?: FirstCommentInput;
 }
 
 export interface UpdatePostParams {
@@ -229,8 +247,8 @@ export interface UpdatePostParams {
   startDateTime?: number;
   status?: 'pending' | 'inqueue' | 'draft' | 'inqueue-draft';
   targetingPresetId?: string;
-  workflowId?: string;
-  firstComment?: string;
+  /** Pass `null` to remove an existing first comment. */
+  firstComment?: FirstCommentInput | null;
 }
 
 export interface ChangePostCampaignParams {

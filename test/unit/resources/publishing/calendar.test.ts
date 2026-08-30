@@ -23,7 +23,12 @@ describe('CalendarResource', () => {
     const params = { fromDate: '2024-01-01', toDate: '2024-01-31' };
     const result = await calendar.get(params);
 
-    expect(http.post).toHaveBeenCalledWith('/calendar', params);
+    expect(http.post).toHaveBeenCalledWith('/calendar', {
+      fromDate: '2024-01-01',
+      toDate: '2024-01-31',
+    });
+    const callArg = (http.post as any).mock.calls[0][1];
+    expect('filters' in callArg).toBe(false);
     expect(result).toEqual(mockResponse);
   });
 
@@ -32,14 +37,19 @@ describe('CalendarResource', () => {
     const calendar = new CalendarResource(http);
     (http.post as any).mockResolvedValue({ Result: true, Campaigns: {}, Credentials: {}, Media: [], Messages: {}, Posts: {}, CustomEvents: [] });
 
+    const filters = { campaigns: ['002abc'], networks: ['Twitter'] };
     const params = {
       fromDate: '2024-01-01',
       toDate: '2024-01-31',
-      filters: { campaigns: ['002abc'], networks: ['Twitter'] },
+      filters,
     };
     await calendar.get(params);
 
-    expect(http.post).toHaveBeenCalledWith('/calendar', params);
+    const callArg = (http.post as any).mock.calls[0][1];
+    expect(callArg.fromDate).toBe('2024-01-01');
+    expect(callArg.toDate).toBe('2024-01-31');
+    expect(typeof callArg.filters).toBe('string');
+    expect(JSON.parse(callArg.filters)).toEqual(filters);
   });
 
   it('exposes a customEvents sub-resource', () => {

@@ -100,18 +100,15 @@ describe('BaseHttpClient', () => {
     expect(options.body).toContain('url=https');
   });
 
-  it('JSON-stringifies objects in form body', async () => {
+  it('bracket-encodes nested objects and arrays in form body', async () => {
     const fetch = mockFetch(200, { Result: true });
     const client = createClient({ fetch });
 
-    await client.post('/calendar', { filters: { campaigns: ['001'] } });
+    await client.post('/example', { filters: { campaigns: ['001', '002'] } });
 
     const [, options] = fetch.mock.calls[0];
-    const body = options.body as string;
-    expect(body).toContain('filters=');
-    const decoded = new URLSearchParams(body);
-    const filtersValue = decoded.get('filters');
-    expect(JSON.parse(filtersValue!)).toEqual({ campaigns: ['001'] });
+    const decoded = new URLSearchParams(options.body as string);
+    expect(decoded.getAll('filters[campaigns][]')).toEqual(['001', '002']);
   });
 
   it('handles PUT requests', async () => {
