@@ -81,10 +81,21 @@ describe('SocialProfilesResource', () => {
     const mockResponse = { Result: true, Items: [], Total: 0 };
     (http.get as any).mockResolvedValue(mockResponse);
 
-    const params = { _page: 0, _count: 50 as const };
+    const params = { _page: 0, _count: 50 };
     const result = await profiles.listTargetingPresets('cred1', params);
 
     expect(http.get).toHaveBeenCalledWith('/credential/cred1/targeting-presets', params);
     expect(result).toEqual(mockResponse);
+  });
+
+  it('listTargetingPresets accepts an arbitrary _count in the 1-100 range', async () => {
+    const http = createMockHttpClient();
+    const profiles = new SocialProfilesResource(http);
+    (http.get as any).mockResolvedValue({ Result: true, Items: [], Total: 0 });
+
+    const params = { _count: 10 };
+    await profiles.listTargetingPresets('cred1', params);
+
+    expect(http.get).toHaveBeenCalledWith('/credential/cred1/targeting-presets', params);
   });
 });

@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
 import { AdvocatesResource } from '../../../../src/resources/advocacy/advocates.js';
 import { createMockHttpClient } from '../../../helpers/mock-http-client.js';
+import type {
+  InviteAdvocateParams,
+  NewInviteAdvocateParams,
+  ReInviteAdvocateParams,
+  InviteAdvocatesResponse,
+} from '../../../../src/types/advocacy.js';
 
 describe('AdvocatesResource', () => {
   it('get calls GET /advocate/{id}', async () => {
@@ -124,5 +130,47 @@ describe('AdvocatesResource', () => {
 
     expect(http.delete).toHaveBeenCalledWith('/advocate/a1', { boardId: 'b1' });
     expect(result.Result).toBe(true);
+  });
+});
+
+describe('InviteAdvocateParams (type-level)', () => {
+  it('accepts a valid new invite and a valid re-invite', () => {
+    const newInvite = {
+      boardId: 'b1',
+      email: 'a@b.com',
+      firstName: 'A',
+      lastName: 'B',
+      customFields: { cf1: 'x' },
+    };
+    const reInvite = { boardId: 'b1', userId: 'u1', message: 'Reminder' };
+
+    expectTypeOf(newInvite).toExtend<InviteAdvocateParams>();
+    expectTypeOf(reInvite).toExtend<InviteAdvocateParams>();
+    expectTypeOf<NewInviteAdvocateParams>().toExtend<InviteAdvocateParams>();
+    expectTypeOf<ReInviteAdvocateParams>().toExtend<InviteAdvocateParams>();
+  });
+
+  it('rejects invalid invite payloads', () => {
+    // @ts-expect-error - neither email nor userId provided
+    const invalidNeither: InviteAdvocateParams = { boardId: 'b1' };
+    void invalidNeither;
+
+    // @ts-expect-error - email and userId are mutually exclusive
+    const invalidBoth: InviteAdvocateParams = {
+      boardId: 'b1',
+      email: 'a@b.com',
+      userId: 'u1',
+    };
+    void invalidBoth;
+
+    // @ts-expect-error - a new invite requires firstName and lastName
+    const invalidPartial: InviteAdvocateParams = { boardId: 'b1', email: 'a@b.com', firstName: 'A' };
+    void invalidPartial;
+  });
+
+  it('exposes Errors on the invite response (backward-compat)', () => {
+    expectTypeOf<InviteAdvocatesResponse>().toExtend<{
+      Errors?: Record<string, { Error: string }>;
+    }>();
   });
 });

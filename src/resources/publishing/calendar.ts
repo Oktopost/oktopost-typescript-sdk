@@ -43,9 +43,14 @@ export class CalendarCustomEventsResource extends BaseResource {
   async update(
     params: UpdateCustomCalendarEventParams,
   ): Promise<CustomCalendarEvent> {
+    const { campaignIds, ...rest } = params;
+    const payload =
+      campaignIds === undefined
+        ? rest
+        : { ...rest, campaignIds: campaignIds.length ? campaignIds : '' };
     const response = await this.httpClient.put<
       SingleApiResponse<'Item', CustomCalendarEvent>
-    >('/calendar/custom-events', params);
+    >('/calendar/custom-events', payload);
     return response.Item;
   }
 

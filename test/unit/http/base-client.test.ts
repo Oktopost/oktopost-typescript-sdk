@@ -100,6 +100,36 @@ describe('BaseHttpClient', () => {
     expect(options.body).toContain('url=https');
   });
 
+  it('distinguishes empty-string from undefined in form body (clears vs omits)', async () => {
+    const fetch = mockFetch(200, { Result: true });
+    const client = createClient({ fetch });
+
+    await client.put('/calendar/custom-events', { id: '0CE1', campaignIds: '' });
+
+    const [, withEmpty] = fetch.mock.calls[0];
+    const decodedEmpty = new URLSearchParams(withEmpty.body as string);
+    expect(decodedEmpty.has('campaignIds')).toBe(true);
+    expect(decodedEmpty.get('campaignIds')).toBe('');
+
+    await client.put('/calendar/custom-events', { id: '0CE1', campaignIds: undefined });
+
+    const [, withUndefined] = fetch.mock.calls[1];
+    const decodedUndefined = new URLSearchParams(withUndefined.body as string);
+    expect(decodedUndefined.has('campaignIds')).toBe(false);
+  });
+
+  it('drops empty arrays from form body', async () => {
+    const fetch = mockFetch(200, { Result: true });
+    const client = createClient({ fetch });
+
+    await client.put('/example', { campaignIds: [] });
+
+    const [, options] = fetch.mock.calls[0];
+    const decoded = new URLSearchParams(options.body as string);
+    expect(decoded.has('campaignIds')).toBe(false);
+    expect(decoded.has('campaignIds[]')).toBe(false);
+  });
+
   it('bracket-encodes nested objects and arrays in form body', async () => {
     const fetch = mockFetch(200, { Result: true });
     const client = createClient({ fetch });

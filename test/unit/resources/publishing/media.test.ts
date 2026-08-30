@@ -27,6 +27,26 @@ describe('MediaResource', () => {
     expect(result).toEqual(mockResponse);
   });
 
+  it('list forwards folderId to filter by folder', async () => {
+    const http = createMockHttpClient();
+    const media = new MediaResource(http);
+    (http.get as any).mockResolvedValue({ Result: true, Items: [], Total: 0 });
+
+    await media.list({ folderId: '035000000000001' });
+
+    expect(http.get).toHaveBeenCalledWith('/media', { folderId: '035000000000001' });
+  });
+
+  it('list forwards an empty folderId for root-level media', async () => {
+    const http = createMockHttpClient();
+    const media = new MediaResource(http);
+    (http.get as any).mockResolvedValue({ Result: true, Items: [], Total: 0 });
+
+    await media.list({ folderId: '' });
+
+    expect(http.get).toHaveBeenCalledWith('/media', { folderId: '' });
+  });
+
   it('listAll yields all items', async () => {
     const http = createMockHttpClient();
     const media = new MediaResource(http);

@@ -112,7 +112,11 @@ export interface TargetingPreset {
   Language: string[];
 }
 
-export type TargetingPresetListParams = Pick<PaginationParams, '_page' | '_count'>;
+export interface TargetingPresetListParams {
+  _page?: number;
+  /** Results per page. Any integer from 1 to 100. */
+  _count?: number;
+}
 
 export interface Cname {
   Id: string;

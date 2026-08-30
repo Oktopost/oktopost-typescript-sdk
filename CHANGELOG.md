@@ -18,7 +18,10 @@ Brings the SDK to parity with Oktopost API v2.18.0.
 
 ### Changed
 
-- `client.advocacy.advocates.invite()` now returns the API's `Users` response shape and supports re-invite via `userId` plus optional `message`/`role`.
+- `client.advocacy.advocates.invite()` now returns the API's `Users` response shape (while retaining the base `Errors` field for backward compatibility) and supports re-invite via `userId` plus optional `message`/`role`/`customFields`. Invite params are now an exclusive union: a new invite requires `email` + `firstName` + `lastName`, a re-invite requires `userId`, and the two are mutually exclusive (also applied to `bulkInvite` entries).
+- **Breaking**: `client.advocacy.stories.create()` and `.update()` now resolve to the created/updated `Story` (the response `Item`) instead of the raw `BaseApiResponse`. `create()` accepts a discriminated union of a normal story vs. a LinkedIn repost (`postlogId` + optional `generateMessages`), and `Story.Title` is now nullable.
+- `client.publishing.calendar.customEvents.update()` now sends an explicit empty value for `campaignIds: []` so an event's campaigns can be cleared (previously an empty array was dropped and treated as "unchanged").
+- `client.account.socialProfiles.listTargetingPresets()` now accepts any `_count` from 1 to 100 (previously restricted to 25/50/100).
 - Array and nested-object request params are now encoded with PHP-style bracket notation (`ids[]=a`, `users[0][email]=x`, `firstComment[text]=y`) in both query strings and form bodies, matching the API. Calendar `filters` continues to be sent as a JSON string.
 
 ## 1.0.0

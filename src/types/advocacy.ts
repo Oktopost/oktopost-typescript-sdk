@@ -1,4 +1,4 @@
-import type { PaginationParams } from './common.js';
+import type { BaseApiResponse, PaginationParams } from './common.js';
 
 export interface AdvocateProfile {
   Id: string;
@@ -94,22 +94,39 @@ export interface AdvocateGetParams {
   boardId?: string;
 }
 
-export interface InviteAdvocateParams {
+interface InviteAdvocateBase {
   /** Required. Board to invite the advocate to. */
   boardId: string;
-  /** Required for a new invite. Mutually exclusive with `userId`. */
-  email?: string;
-  /** Required for a re-invite. Mutually exclusive with `email`. */
-  userId?: string;
-  /** Required for a new invite (with `email`). */
-  firstName?: string;
-  /** Required for a new invite (with `email`). */
-  lastName?: string;
   /** Board role for the new invite. Ignored for re-invite. */
   role?: string;
   /** Optional note attached to the invite. */
   message?: string;
 }
+
+/** Invite a brand-new advocate by email. */
+export interface NewInviteAdvocateParams extends InviteAdvocateBase {
+  /** Required for a new invite. */
+  email: string;
+  /** Required for a new invite. */
+  firstName: string;
+  /** Required for a new invite. */
+  lastName: string;
+  /** Optional advocate custom field values, keyed by field ID. */
+  customFields?: Record<string, string>;
+  userId?: never;
+}
+
+/** Re-invite an existing board advocate by user ID. */
+export interface ReInviteAdvocateParams extends InviteAdvocateBase {
+  /** Required for a re-invite. Must already be an advocate on the board. */
+  userId: string;
+  email?: never;
+  firstName?: never;
+  lastName?: never;
+  customFields?: never;
+}
+
+export type InviteAdvocateParams = NewInviteAdvocateParams | ReInviteAdvocateParams;
 
 export interface InvitedAdvocateUser {
   Id: string;
@@ -117,23 +134,35 @@ export interface InvitedAdvocateUser {
   Email: string;
 }
 
-export interface InviteAdvocatesResponse {
-  Result: boolean;
+export interface InviteAdvocatesResponse extends BaseApiResponse {
   Users: InvitedAdvocateUser[];
 }
 
-export interface BulkInviteAdvocateEntry {
-  /** New invite. Requires `firstName` and `lastName`. Mutually exclusive with `userId`. */
-  email?: string;
-  /** Re-invite an existing board advocate. Mutually exclusive with `email`. */
-  userId?: string;
-  /** Required with `email`. */
-  firstName?: string;
-  /** Required with `email`. */
-  lastName?: string;
-  /** Board role for a new invite. */
+/** New-invite entry for a bulk request. Requires `firstName` and `lastName`. */
+export interface NewBulkInviteAdvocateEntry {
+  email: string;
+  firstName: string;
+  lastName: string;
+  /** Board role for the new invite. */
   role?: string;
+  /** Optional advocate custom field values, keyed by field ID. */
+  customFields?: Record<string, string>;
+  userId?: never;
 }
+
+/** Re-invite entry for a bulk request. Targets an existing board advocate. */
+export interface ReBulkInviteAdvocateEntry {
+  userId: string;
+  email?: never;
+  firstName?: never;
+  lastName?: never;
+  role?: never;
+  customFields?: never;
+}
+
+export type BulkInviteAdvocateEntry =
+  | NewBulkInviteAdvocateEntry
+  | ReBulkInviteAdvocateEntry;
 
 export interface BulkInviteAdvocatesParams {
   /** Required. Board to invite advocates to. */
@@ -213,7 +242,7 @@ export interface Story {
   PublishDate: string;
   ExpirationDate: string;
   IsFeatured: boolean;
-  Title: string;
+  Title: string | null;
   Description: string;
   ImageUrl: string | null;
   LinkTitle: string | null;
@@ -241,7 +270,7 @@ export interface StoryListParams {
   boardId?: string;
 }
 
-export interface CreateStoryParams {
+export interface CreateNormalStoryParams {
   boardId?: string;
   title: string;
   description: string;
@@ -255,14 +284,34 @@ export interface CreateStoryParams {
   expirationDatetime?: number;
   isDraft?: boolean;
   isFeatured?: boolean;
-  /**
-   * Postlog ID of a LinkedIn post to repost. When provided, the story is created
-   * as a repost (`type: post-attachment`); `title`/`description` become optional and
-   * `link`, `mediaIds`, and `messageIds` are ignored.
-   */
-  postlogId?: string;
   workflowId?: string;
+  /** Not allowed on a normal story. Provide `postlogId` to create a repost story instead. */
+  postlogId?: never;
 }
+
+export interface CreateRepostStoryParams {
+  /**
+   * Postlog ID of a LinkedIn post to repost. Creates the story as a repost
+   * (`type: post-attachment`). `title`/`description`/`campaignId` are optional and
+   * auto-derived; `link`, `mediaIds`, and `messageIds` are ignored by the API.
+   */
+  postlogId: string;
+  boardId?: string;
+  title?: string;
+  description?: string;
+  campaignId?: string;
+  topicIds?: string;
+  tagIds?: string;
+  publishDatetime?: number;
+  expirationDatetime?: number;
+  isDraft?: boolean;
+  isFeatured?: boolean;
+  workflowId?: string;
+  /** Automatically create advocate messages in the background for the repost. */
+  generateMessages?: boolean;
+}
+
+export type CreateStoryParams = CreateNormalStoryParams | CreateRepostStoryParams;
 
 export interface UpdateStoryParams {
   boardId?: string;

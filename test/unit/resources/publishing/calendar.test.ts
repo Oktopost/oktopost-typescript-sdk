@@ -111,6 +111,30 @@ describe('CalendarCustomEventsResource', () => {
     expect(result).toEqual(mockEvent);
   });
 
+  it('update forwards an empty string for campaignIds: [] to clear campaigns', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    (http.put as any).mockResolvedValue({ Result: true, Item: { ID: '0CE1' } });
+
+    await events.update({ id: '0CE1', campaignIds: [] });
+
+    expect(http.put).toHaveBeenCalledWith('/calendar/custom-events', {
+      id: '0CE1',
+      campaignIds: '',
+    });
+  });
+
+  it('update omits campaignIds entirely when undefined', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    (http.put as any).mockResolvedValue({ Result: true, Item: { ID: '0CE1' } });
+
+    await events.update({ id: '0CE1', title: 'Updated' });
+
+    const callArg = (http.put as any).mock.calls[0][1];
+    expect('campaignIds' in callArg).toBe(false);
+  });
+
   it('delete calls DELETE /calendar/custom-events with id in body', async () => {
     const http = createMockHttpClient();
     const events = new CalendarCustomEventsResource(http);

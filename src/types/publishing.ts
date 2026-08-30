@@ -295,6 +295,8 @@ export interface MediaItem {
   Modified: string;
   AccountId: string;
   Status: string;
+  /** Folder the asset belongs to, or `null` when it is at the library root. */
+  FolderId: string | null;
   CreatedBy: string;
   ModifiedBy: string;
   Type: MediaType;
@@ -313,6 +315,11 @@ export interface MediaListItem extends MediaItem {
 export interface MediaListParams extends PaginationParams {
   q?: string;
   type?: MediaType;
+  /**
+   * Filter media by folder. Pass a folder ID to list assets in that folder, an
+   * empty string to list only root-level assets, or omit to list across all folders.
+   */
+  folderId?: string;
 }
 
 export interface CreateMediaParams {
