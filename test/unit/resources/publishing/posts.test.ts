@@ -92,7 +92,7 @@ describe('PostsResource', () => {
     const params = {
       messageId: 'msg1',
       credentialIds: 'cred1',
-      firstComment: 'Nice post',
+      firstComment: { text: 'Nice post' },
       targetingPresetId: 'tp1',
       workflowId: 'wf1',
     };

@@ -43,10 +43,10 @@ export class PostsResource extends BaseResource {
   }
 
   async update(id: string, params: UpdatePostParams): Promise<Post> {
-    const body: Record<string, unknown> =
+    const body =
       params.firstComment === null
         ? { ...params, firstComment: 'null' }
-        : params;
+        : { ...params };
     const response = await this.httpClient.post<SingleApiResponse<'Post', Post>>(
       `/post/${id}`,
       body,
