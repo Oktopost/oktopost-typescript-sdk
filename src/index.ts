@@ -35,9 +35,13 @@ export {
   MediaResource,
   UploadsResource,
   CalendarResource,
+  CalendarCustomEventsResource,
   TagsResource,
   LinksResource,
 } from './resources/publishing/index.js';
+
+export { MediaNamespace } from './resources/media/index.js';
+export { FoldersResource } from './resources/media/index.js';
 
 export { AnalyticsNamespace } from './resources/analytics/index.js';
 export {
@@ -45,10 +49,16 @@ export {
   FollowersResource,
   ClicksResource,
   ExportsResource,
+  DashboardsResource,
 } from './resources/analytics/index.js';
 
 export { InboxNamespace } from './resources/inbox/index.js';
-export { CommentsResource } from './resources/inbox/index.js';
+export {
+  CommentsResource,
+  ConversationsResource,
+  ConversationTagsResource,
+  CannedResponsesResource,
+} from './resources/inbox/index.js';
 
 export { AdvocacyNamespace } from './resources/advocacy/index.js';
 export {
@@ -114,9 +124,12 @@ export type {
   UpdateTeamParams,
   AddTeamEntitiesParams,
   RemoveTeamEntitiesParams,
+  UserListParams,
   SocialProfile,
   SocialProfileListParams,
   UpdateSocialProfileParams,
+  TargetingPreset,
+  TargetingPresetListParams,
   Cname,
   CreateCnameParams,
   UpdateCnameParams,
@@ -143,6 +156,7 @@ export type {
   PostGetParams,
   CreatePostParams,
   UpdatePostParams,
+  ChangePostCampaignParams,
   PostlogStats,
   Postlog,
   PostlogGetParams,
@@ -161,6 +175,11 @@ export type {
   CalendarMessage,
   CalendarPost,
   CalendarResponse,
+  CustomCalendarEventCampaign,
+  CustomCalendarEvent,
+  CustomCalendarEventListParams,
+  CreateCustomCalendarEventParams,
+  UpdateCustomCalendarEventParams,
   Tag,
   TagListParams,
   CreateTagParams,
@@ -170,6 +189,8 @@ export type {
   LinkListParams,
   UpdateLinkParams,
 } from './types/publishing.js';
+
+export type { Folder, FolderListParams, CreateFolderParams } from './types/media.js';
 
 export type {
   PostAnalyticsStats,
@@ -181,11 +202,39 @@ export type {
   ExportItem,
   ExportDetail,
   ExportListParams,
+  DashboardVisibility,
+  DashboardListItem,
+  DashboardWidget,
+  Dashboard,
+  DashboardListParams,
+  DashboardListResponse,
+  DashboardReportParams,
+  DashboardReportData,
 } from './types/analytics.js';
 
 export type {
   Comment,
   CommentListParams,
+  ConversationItemType,
+  ConversationStatus,
+  ConversationTagRef,
+  Conversation,
+  ConversationTimelineEntry,
+  ConversationAssignment,
+  ConversationListParams,
+  ConversationListResponse,
+  ConversationTimelineParams,
+  AssignConversationParams,
+  ReplyConversationParams,
+  CreateSalesforceCaseParams,
+  ConversationTag,
+  ConversationTagListParams,
+  UpdateConversationTagParams,
+  CannedResponseVisibility,
+  CannedResponseAuthor,
+  CannedResponse,
+  CannedResponseListParams,
+  CreateCannedResponseParams,
 } from './types/inbox.js';
 
 export type {
@@ -195,7 +244,14 @@ export type {
   AdvocateListItem,
   AdvocateListParams,
   AdvocateGetParams,
+  AdvocateCustomField,
   InviteAdvocateParams,
+  InvitedAdvocateUser,
+  InviteAdvocatesResponse,
+  BulkInviteAdvocateEntry,
+  BulkInviteAdvocatesParams,
+  BulkInviteAdvocateError,
+  BulkInviteAdvocatesResponse,
   BoardConfig,
   Board,
   StoryMessage,

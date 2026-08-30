@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { CalendarResource } from '../../../../src/resources/publishing/calendar.js';
+import {
+  CalendarResource,
+  CalendarCustomEventsResource,
+} from '../../../../src/resources/publishing/calendar.js';
 import { createMockHttpClient } from '../../../helpers/mock-http-client.js';
 
 describe('CalendarResource', () => {
@@ -13,28 +16,133 @@ describe('CalendarResource', () => {
       Media: [],
       Messages: {},
       Posts: {},
+      CustomEvents: [],
     };
     (http.post as any).mockResolvedValue(mockResponse);
 
     const params = { fromDate: '2024-01-01', toDate: '2024-01-31' };
     const result = await calendar.get(params);
 
-    expect(http.post).toHaveBeenCalledWith('/calendar', params);
+    expect(http.post).toHaveBeenCalledWith('/calendar', {
+      fromDate: '2024-01-01',
+      toDate: '2024-01-31',
+    });
+    const callArg = (http.post as any).mock.calls[0][1];
+    expect('filters' in callArg).toBe(false);
     expect(result).toEqual(mockResponse);
   });
 
   it('get passes filters', async () => {
     const http = createMockHttpClient();
     const calendar = new CalendarResource(http);
-    (http.post as any).mockResolvedValue({ Result: true, Campaigns: {}, Credentials: {}, Media: [], Messages: {}, Posts: {} });
+    (http.post as any).mockResolvedValue({ Result: true, Campaigns: {}, Credentials: {}, Media: [], Messages: {}, Posts: {}, CustomEvents: [] });
 
+    const filters = { campaigns: ['002abc'], networks: ['Twitter'] };
     const params = {
       fromDate: '2024-01-01',
       toDate: '2024-01-31',
-      filters: { campaigns: ['002abc'], networks: ['Twitter'] },
+      filters,
     };
     await calendar.get(params);
 
-    expect(http.post).toHaveBeenCalledWith('/calendar', params);
+    const callArg = (http.post as any).mock.calls[0][1];
+    expect(callArg.fromDate).toBe('2024-01-01');
+    expect(callArg.toDate).toBe('2024-01-31');
+    expect(typeof callArg.filters).toBe('string');
+    expect(JSON.parse(callArg.filters)).toEqual(filters);
+  });
+
+  it('exposes a customEvents sub-resource', () => {
+    const http = createMockHttpClient();
+    const calendar = new CalendarResource(http);
+    expect(calendar.customEvents).toBeInstanceOf(CalendarCustomEventsResource);
+  });
+});
+
+describe('CalendarCustomEventsResource', () => {
+  it('list calls GET /calendar/custom-events with params', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    const mockResponse = { Result: true, Items: [{ ID: '0CE1' }], Total: 1 };
+    (http.get as any).mockResolvedValue(mockResponse);
+
+    const params = { campaignIds: ['002abc'], after: 1785542400 };
+    const result = await events.list(params);
+
+    expect(http.get).toHaveBeenCalledWith('/calendar/custom-events', params);
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('get calls GET /calendar/custom-events?id= and returns Item', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    const mockEvent = { ID: '0CE1', Title: 'Launch' };
+    (http.get as any).mockResolvedValue({ Result: true, Item: mockEvent });
+
+    const result = await events.get('0CE1');
+
+    expect(http.get).toHaveBeenCalledWith('/calendar/custom-events', { id: '0CE1' });
+    expect(result).toEqual(mockEvent);
+  });
+
+  it('create calls POST /calendar/custom-events and returns Item', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    const mockEvent = { ID: '0CE2', Title: 'Launch' };
+    (http.post as any).mockResolvedValue({ Result: true, Item: mockEvent });
+
+    const params = { title: 'Launch', startDate: 1786352400 };
+    const result = await events.create(params);
+
+    expect(http.post).toHaveBeenCalledWith('/calendar/custom-events', params);
+    expect(result).toEqual(mockEvent);
+  });
+
+  it('update calls PUT /calendar/custom-events with id in body and returns Item', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    const mockEvent = { ID: '0CE1', Title: 'Updated' };
+    (http.put as any).mockResolvedValue({ Result: true, Item: mockEvent });
+
+    const params = { id: '0CE1', title: 'Updated' };
+    const result = await events.update(params);
+
+    expect(http.put).toHaveBeenCalledWith('/calendar/custom-events', params);
+    expect(result).toEqual(mockEvent);
+  });
+
+  it('update forwards an empty string for campaignIds: [] to clear campaigns', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    (http.put as any).mockResolvedValue({ Result: true, Item: { ID: '0CE1' } });
+
+    await events.update({ id: '0CE1', campaignIds: [] });
+
+    expect(http.put).toHaveBeenCalledWith('/calendar/custom-events', {
+      id: '0CE1',
+      campaignIds: '',
+    });
+  });
+
+  it('update omits campaignIds entirely when undefined', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    (http.put as any).mockResolvedValue({ Result: true, Item: { ID: '0CE1' } });
+
+    await events.update({ id: '0CE1', title: 'Updated' });
+
+    const callArg = (http.put as any).mock.calls[0][1];
+    expect('campaignIds' in callArg).toBe(false);
+  });
+
+  it('delete calls DELETE /calendar/custom-events with id in body', async () => {
+    const http = createMockHttpClient();
+    const events = new CalendarCustomEventsResource(http);
+    (http.delete as any).mockResolvedValue({ Result: true });
+
+    const result = await events.delete('0CE1');
+
+    expect(http.delete).toHaveBeenCalledWith('/calendar/custom-events', { id: '0CE1' });
+    expect(result.Result).toBe(true);
   });
 });

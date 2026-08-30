@@ -50,14 +50,17 @@ The SDK mirrors the Oktopost API documentation structure:
 | Namespace | Access | Resources |
 |-----------|--------|-----------|
 | **Account** | `client.account` | users, teams, teamEntities, socialProfiles, cnames, conversionTags, notifications |
-| **Publishing** | `client.publishing` | campaigns, messages, posts, postLog, media, uploads, calendar, tags, links |
-| **Analytics** | `client.analytics` | postAnalytics, followers, clicks, exports |
-| **Inbox** | `client.inbox` | comments |
+| **Publishing** | `client.publishing` | campaigns, messages, posts, postLog, calendar (+ `calendar.customEvents`), tags, links |
+| **Media** | `client.media` | media, uploads, folders |
+| **Analytics** | `client.analytics` | postAnalytics, followers, clicks, exports, dashboards |
+| **Inbox** | `client.inbox` | comments, conversations, conversationTags, cannedResponses |
 | **Advocacy** | `client.advocacy` | advocates, boards, stories, boardMessages, topics |
 | **Approvals** | `client.approvals` | workflows, workflowSteps, workflowItems, workflowItemNotes |
 | **Streams** | `client.streams` | tabs, streams |
 | **Leads** | `client.leads` | leads, activities, links |
 | **Events** | `client.events` | webhooks, webhookLog |
+
+> Note: `client.publishing.media` and `client.publishing.uploads` are deprecated aliases of `client.media.media` and `client.media.uploads`. Prefer the `client.media` namespace.
 
 ## Pagination
 

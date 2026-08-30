@@ -44,27 +44,42 @@ describe('StoriesResource', () => {
     expect(items).toHaveLength(2);
   });
 
-  it('create calls POST /story', async () => {
+  it('create calls POST /story and returns Item', async () => {
     const http = createMockHttpClient();
     const stories = new StoriesResource(http);
-    (http.post as any).mockResolvedValue({ Result: true });
+    const mockStory = { ID: 's1', Title: 'New Story' };
+    (http.post as any).mockResolvedValue({ Result: true, Item: mockStory });
 
     const params = { title: 'New Story', description: 'Desc', campaignId: 'c1' };
     const result = await stories.create(params);
 
     expect(http.post).toHaveBeenCalledWith('/story', params);
-    expect(result.Result).toBe(true);
+    expect(result).toEqual(mockStory);
   });
 
-  it('update calls POST /story/{id}', async () => {
+  it('create forwards postlogId and generateMessages for repost stories', async () => {
     const http = createMockHttpClient();
     const stories = new StoriesResource(http);
-    (http.post as any).mockResolvedValue({ Result: true });
+    const mockStory = { ID: 's1', Title: null, PostlogId: '007x', Type: 'post-attachment' };
+    (http.post as any).mockResolvedValue({ Result: true, Item: mockStory });
+
+    const params = { boardId: 'b1', postlogId: '007x', generateMessages: true };
+    const result = await stories.create(params);
+
+    expect(http.post).toHaveBeenCalledWith('/story', params);
+    expect(result).toEqual(mockStory);
+  });
+
+  it('update calls POST /story/{id} and returns Item', async () => {
+    const http = createMockHttpClient();
+    const stories = new StoriesResource(http);
+    const mockStory = { ID: 's1', Title: 'Updated' };
+    (http.post as any).mockResolvedValue({ Result: true, Item: mockStory });
 
     const result = await stories.update('s1', { title: 'Updated' });
 
     expect(http.post).toHaveBeenCalledWith('/story/s1', { title: 'Updated' });
-    expect(result.Result).toBe(true);
+    expect(result).toEqual(mockStory);
   });
 
   it('delete calls DELETE /story/{id}', async () => {

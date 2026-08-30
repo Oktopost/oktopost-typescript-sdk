@@ -62,4 +62,40 @@ describe('SocialProfilesResource', () => {
     expect(http.delete).toHaveBeenCalledWith('/credential/cred1');
     expect(result.Result).toBe(true);
   });
+
+  it('listTargetingPresets calls GET /credential/{id}/targeting-presets without params', async () => {
+    const http = createMockHttpClient();
+    const profiles = new SocialProfilesResource(http);
+    const mockResponse = { Result: true, Items: [{ Id: '0tp000000000001' }], Total: 1 };
+    (http.get as any).mockResolvedValue(mockResponse);
+
+    const result = await profiles.listTargetingPresets('cred1');
+
+    expect(http.get).toHaveBeenCalledWith('/credential/cred1/targeting-presets', undefined);
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('listTargetingPresets calls GET /credential/{id}/targeting-presets with params', async () => {
+    const http = createMockHttpClient();
+    const profiles = new SocialProfilesResource(http);
+    const mockResponse = { Result: true, Items: [], Total: 0 };
+    (http.get as any).mockResolvedValue(mockResponse);
+
+    const params = { _page: 0, _count: 50 };
+    const result = await profiles.listTargetingPresets('cred1', params);
+
+    expect(http.get).toHaveBeenCalledWith('/credential/cred1/targeting-presets', params);
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('listTargetingPresets accepts an arbitrary _count in the 1-100 range', async () => {
+    const http = createMockHttpClient();
+    const profiles = new SocialProfilesResource(http);
+    (http.get as any).mockResolvedValue({ Result: true, Items: [], Total: 0 });
+
+    const params = { _count: 10 };
+    await profiles.listTargetingPresets('cred1', params);
+
+    expect(http.get).toHaveBeenCalledWith('/credential/cred1/targeting-presets', params);
+  });
 });

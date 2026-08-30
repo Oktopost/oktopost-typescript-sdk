@@ -27,6 +27,16 @@ describe('LeadsResource', () => {
     expect(result).toEqual(mockResponse);
   });
 
+  it('list forwards all_leads param', async () => {
+    const http = createMockHttpClient();
+    const leads = new LeadsResource(http);
+    (http.get as any).mockResolvedValue({ Result: true, Items: [], Total: 0 });
+
+    await leads.list({ all_leads: true });
+
+    expect(http.get).toHaveBeenCalledWith('/lead', { all_leads: true });
+  });
+
   it('listAll yields all items', async () => {
     const http = createMockHttpClient();
     const leads = new LeadsResource(http);

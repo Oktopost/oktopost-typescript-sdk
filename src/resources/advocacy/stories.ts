@@ -28,18 +28,20 @@ export class StoriesResource extends BaseResource {
     yield* this.autoPaginate<Story>('/story', params);
   }
 
-  async create(params: CreateStoryParams): Promise<BaseApiResponse> {
-    return this.httpClient.post<BaseApiResponse>(
+  async create(params: CreateStoryParams): Promise<Story> {
+    const response = await this.httpClient.post<SingleApiResponse<'Item', Story>>(
       '/story',
       params,
     );
+    return response.Item;
   }
 
-  async update(id: string, params: UpdateStoryParams): Promise<BaseApiResponse> {
-    return this.httpClient.post<BaseApiResponse>(
+  async update(id: string, params: UpdateStoryParams): Promise<Story> {
+    const response = await this.httpClient.post<SingleApiResponse<'Item', Story>>(
       `/story/${id}`,
       params,
     );
+    return response.Item;
   }
 
   async delete(id: string): Promise<BaseApiResponse> {

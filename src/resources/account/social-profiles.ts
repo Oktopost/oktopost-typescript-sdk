@@ -4,6 +4,8 @@ import type {
   SocialProfile,
   SocialProfileListParams,
   UpdateSocialProfileParams,
+  TargetingPreset,
+  TargetingPresetListParams,
 } from '../../types/account.js';
 
 export class SocialProfilesResource extends BaseResource {
@@ -31,5 +33,15 @@ export class SocialProfilesResource extends BaseResource {
 
   async delete(id: string): Promise<BaseApiResponse> {
     return this.httpClient.delete<BaseApiResponse>(`/credential/${id}`);
+  }
+
+  async listTargetingPresets(
+    id: string,
+    params?: TargetingPresetListParams,
+  ): Promise<PaginatedApiResponse<TargetingPreset>> {
+    return this.httpClient.get<PaginatedApiResponse<TargetingPreset>>(
+      `/credential/${id}/targeting-presets`,
+      params,
+    );
   }
 }

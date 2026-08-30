@@ -15,7 +15,7 @@ describe('UsersResource', () => {
     expect(result).toEqual(mockUser);
   });
 
-  it('list calls GET /user', async () => {
+  it('list calls GET /user without params', async () => {
     const http = createMockHttpClient();
     const users = new UsersResource(http);
     const mockResponse = { Result: true, Items: [{ Id: '00A001' }], Total: 1 };
@@ -23,7 +23,20 @@ describe('UsersResource', () => {
 
     const result = await users.list();
 
-    expect(http.get).toHaveBeenCalledWith('/user');
+    expect(http.get).toHaveBeenCalledWith('/user', undefined);
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('list calls GET /user with params', async () => {
+    const http = createMockHttpClient();
+    const users = new UsersResource(http);
+    const mockResponse = { Result: true, Items: [{ Id: '00A001' }], Total: 1 };
+    (http.get as any).mockResolvedValue(mockResponse);
+
+    const params = { q: 'okto', _order: 'name,1', _count: 50 as const, _page: 0 };
+    const result = await users.list(params);
+
+    expect(http.get).toHaveBeenCalledWith('/user', params);
     expect(result).toEqual(mockResponse);
   });
 
@@ -43,6 +56,25 @@ describe('UsersResource', () => {
 
     expect(items).toHaveLength(102);
     expect(http.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('listAll threads params into pagination', async () => {
+    const http = createMockHttpClient();
+    const users = new UsersResource(http);
+    (http.get as any).mockResolvedValue({ Result: true, Items: [{ Id: '00A001' }], Total: 1 });
+
+    const items = [];
+    for await (const item of users.listAll({ q: 'okto', _order: 'name,1' })) {
+      items.push(item);
+    }
+
+    expect(items).toHaveLength(1);
+    expect(http.get).toHaveBeenCalledWith('/user', {
+      q: 'okto',
+      _order: 'name,1',
+      _page: 0,
+      _count: 100,
+    });
   });
 
   it('create calls POST /user with params', async () => {

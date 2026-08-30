@@ -7,6 +7,7 @@ import type {
   PostGetParams,
   CreatePostParams,
   UpdatePostParams,
+  ChangePostCampaignParams,
 } from '../../types/publishing.js';
 
 export class PostsResource extends BaseResource {
@@ -42,8 +43,23 @@ export class PostsResource extends BaseResource {
   }
 
   async update(id: string, params: UpdatePostParams): Promise<Post> {
+    const body =
+      params.firstComment === null
+        ? { ...params, firstComment: 'null' }
+        : { ...params };
     const response = await this.httpClient.post<SingleApiResponse<'Post', Post>>(
       `/post/${id}`,
+      body,
+    );
+    return response.Post;
+  }
+
+  async changeCampaign(
+    id: string,
+    params: ChangePostCampaignParams,
+  ): Promise<Post> {
+    const response = await this.httpClient.post<SingleApiResponse<'Post', Post>>(
+      `/post/${id}/change-campaign`,
       params,
     );
     return response.Post;

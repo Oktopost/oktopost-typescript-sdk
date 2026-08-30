@@ -30,6 +30,7 @@ export interface LeadListParams {
   search?: string;
   _page?: number;
   _count?: number;
+  all_leads?: boolean;
 }
 
 export interface LeadActivity {
@@ -40,6 +41,7 @@ export interface LeadActivity {
   Type: string;
   Network: string;
   ProfileId: string;
+  PostlogId: string | null;
   Data: Record<string, unknown>;
 }
 

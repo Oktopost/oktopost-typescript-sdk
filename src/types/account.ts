@@ -1,4 +1,4 @@
-import type { UserRole } from './common.js';
+import type { PaginationParams, UserRole } from './common.js';
 
 export interface User {
   Id: string;
@@ -31,6 +31,10 @@ export interface UserListItem {
   LastLogin: string;
   Role: UserRole;
   Timezone: string;
+}
+
+export interface UserListParams extends PaginationParams {
+  q?: string;
 }
 
 export interface CreateUserParams {
@@ -93,6 +97,25 @@ export interface SocialProfileListParams {
 export interface UpdateSocialProfileParams {
   displayName?: string;
   nativePostsEnabled?: 0 | 1;
+}
+
+export interface TargetingPreset {
+  Id: string;
+  CredentialId: string;
+  AccountId: string;
+  Name: string;
+  CompanySize: string[];
+  Industry: string[];
+  Function: string[];
+  Seniority: string[];
+  Geography: string[];
+  Language: string[];
+}
+
+export interface TargetingPresetListParams {
+  _page?: number;
+  /** Results per page. Any integer from 1 to 100. */
+  _count?: number;
 }
 
 export interface Cname {

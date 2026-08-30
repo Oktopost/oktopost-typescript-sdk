@@ -166,6 +166,16 @@ export interface PostStats {
   ImpressionsAdded: number;
 }
 
+export interface FirstComment {
+  Id: string;
+  Network: string;
+  Status: string;
+  ScheduledAt: number;
+  Text: string;
+  CampaignId: string;
+  Media: unknown[];
+}
+
 export interface Post {
   Id: string;
   Created: string;
@@ -197,6 +207,7 @@ export interface Post {
   Utm: string;
   Credentials: string;
   Stats?: PostStats;
+  FirstComment?: FirstComment;
 }
 
 export interface PostListParams extends PaginationParams {
@@ -213,11 +224,21 @@ export interface PostGetParams {
   stats?: 0 | 1;
 }
 
+export interface FirstCommentInput {
+  /** Comment text. Maximum 3000 characters. */
+  text?: string;
+  /** A single pre-uploaded image media ID. Images only. */
+  media?: string;
+}
+
 export interface CreatePostParams {
   messageId: string;
   credentialIds: string;
   startDateTime?: number;
   status?: 'pending' | 'inqueue' | 'draft' | 'inqueue-draft';
+  targetingPresetId?: string;
+  workflowId?: string;
+  firstComment?: FirstCommentInput;
 }
 
 export interface UpdatePostParams {
@@ -225,6 +246,13 @@ export interface UpdatePostParams {
   credentialIds?: string;
   startDateTime?: number;
   status?: 'pending' | 'inqueue' | 'draft' | 'inqueue-draft';
+  targetingPresetId?: string;
+  /** Pass `null` to remove an existing first comment. */
+  firstComment?: FirstCommentInput | null;
+}
+
+export interface ChangePostCampaignParams {
+  campaignId: string;
 }
 
 export interface PostlogStats {
@@ -267,6 +295,8 @@ export interface MediaItem {
   Modified: string;
   AccountId: string;
   Status: string;
+  /** Folder the asset belongs to, or `null` when it is at the library root. */
+  FolderId: string | null;
   CreatedBy: string;
   ModifiedBy: string;
   Type: MediaType;
@@ -285,6 +315,11 @@ export interface MediaListItem extends MediaItem {
 export interface MediaListParams extends PaginationParams {
   q?: string;
   type?: MediaType;
+  /**
+   * Filter media by folder. Pass a folder ID to list assets in that folder, an
+   * empty string to list only root-level assets, or omit to list across all folders.
+   */
+  folderId?: string;
 }
 
 export interface CreateMediaParams {
@@ -315,6 +350,7 @@ export interface UploadListParams extends PaginationParams {
 export interface CreateUploadParams {
   source: string;
   name?: string;
+  /** MIME type of the upload, e.g. `image/jpeg`, `video/mp4`, or `application/pdf`. */
   mimeType?: string;
 }
 
@@ -404,6 +440,49 @@ export interface CalendarResponse {
   Media: unknown[];
   Messages: Record<string, CalendarMessage>;
   Posts: Record<string, CalendarPost>;
+  CustomEvents: CustomCalendarEvent[];
+}
+
+export interface CustomCalendarEventCampaign {
+  Id: string;
+  Name: string;
+}
+
+export interface CustomCalendarEvent {
+  ID: string;
+  Created: string;
+  Modified: string;
+  AccountID: string;
+  Title: string;
+  Description: string;
+  Color: string;
+  StartDateTime: string;
+  EndDateTime: string;
+  Campaigns: CustomCalendarEventCampaign[];
+}
+
+export interface CustomCalendarEventListParams extends PaginationParams {
+  ids?: string[];
+  campaignIds?: string[];
+  after?: number;
+  before?: number;
+}
+
+export interface CreateCustomCalendarEventParams {
+  title: string;
+  description?: string;
+  startDate: number;
+  endDate?: number;
+  campaignIds?: string[];
+}
+
+export interface UpdateCustomCalendarEventParams {
+  id: string;
+  title?: string;
+  description?: string;
+  startDate?: number;
+  endDate?: number;
+  campaignIds?: string[];
 }
 
 export interface Tag {

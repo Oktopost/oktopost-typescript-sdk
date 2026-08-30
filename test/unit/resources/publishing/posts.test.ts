@@ -83,6 +83,39 @@ describe('PostsResource', () => {
     expect(result).toEqual(mockPost);
   });
 
+  it('create passes firstComment, targetingPresetId, and workflowId', async () => {
+    const http = createMockHttpClient();
+    const posts = new PostsResource(http);
+    const mockPost = { Id: '004003', Status: 'draft' };
+    (http.post as any).mockResolvedValue({ Result: true, Post: mockPost });
+
+    const params = {
+      messageId: 'msg1',
+      credentialIds: 'cred1',
+      firstComment: { text: 'Nice post' },
+      targetingPresetId: 'tp1',
+      workflowId: 'wf1',
+    };
+    const result = await posts.create(params);
+
+    expect(http.post).toHaveBeenCalledWith('/post', params);
+    expect(result).toEqual(mockPost);
+  });
+
+  it('changeCampaign calls POST /post/{id}/change-campaign and returns Post', async () => {
+    const http = createMockHttpClient();
+    const posts = new PostsResource(http);
+    const mockPost = { Id: '004001', CampaignId: '002new' };
+    (http.post as any).mockResolvedValue({ Result: true, Post: mockPost });
+
+    const result = await posts.changeCampaign('004001', { campaignId: '002new' });
+
+    expect(http.post).toHaveBeenCalledWith('/post/004001/change-campaign', {
+      campaignId: '002new',
+    });
+    expect(result).toEqual(mockPost);
+  });
+
   it('delete calls DELETE /post/{id}', async () => {
     const http = createMockHttpClient();
     const posts = new PostsResource(http);

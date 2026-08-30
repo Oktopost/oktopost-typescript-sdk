@@ -4,6 +4,7 @@ import { PostAnalyticsResource } from '../../../../src/resources/analytics/post-
 import { FollowersResource } from '../../../../src/resources/analytics/followers.js';
 import { ClicksResource } from '../../../../src/resources/analytics/clicks.js';
 import { ExportsResource } from '../../../../src/resources/analytics/exports.js';
+import { DashboardsResource } from '../../../../src/resources/analytics/dashboards.js';
 import { createMockHttpClient } from '../../../helpers/mock-http-client.js';
 
 describe('AnalyticsNamespace', () => {
@@ -15,5 +16,6 @@ describe('AnalyticsNamespace', () => {
     expect(analytics.followers).toBeInstanceOf(FollowersResource);
     expect(analytics.clicks).toBeInstanceOf(ClicksResource);
     expect(analytics.exports).toBeInstanceOf(ExportsResource);
+    expect(analytics.dashboards).toBeInstanceOf(DashboardsResource);
   });
 });
