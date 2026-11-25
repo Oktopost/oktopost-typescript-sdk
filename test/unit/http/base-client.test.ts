@@ -202,18 +202,28 @@ describe('BaseHttpClient', () => {
     const error = await client.get('/campaign').catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(OktopostRateLimitError);
-    expect(error).toMatchObject({ message: 'Too Many Requests', statusCode: 429, limit: 'burst', retryAfter: 30 });
+    expect(error).toMatchObject({
+      message: 'Too Many Requests',
+      statusCode: 429,
+      limit: 'burst',
+      retryAfter: 30,
+    });
   });
 
   it('keeps the text of a plain-text 429 body as the message', async () => {
     const fetch = mockFetch(429, 'Blocked for 15 minutes');
     const client = createClient({ fetch });
 
-    await expect(client.get('/campaign')).rejects.toMatchObject({ message: 'Blocked for 15 minutes' });
+    await expect(client.get('/campaign')).rejects.toMatchObject({
+      message: 'Blocked for 15 minutes',
+    });
   });
 
   it('reads the message of a JSON 429 body', async () => {
-    const fetch = mockFetch(429, { Result: false, Errors: { API: { BurstLimit: 'Account blocked' } } });
+    const fetch = mockFetch(429, {
+      Result: false,
+      Errors: { API: { BurstLimit: 'Account blocked' } },
+    });
     const client = createClient({ fetch });
 
     await expect(client.get('/campaign')).rejects.toMatchObject({
@@ -223,16 +233,54 @@ describe('BaseHttpClient', () => {
     });
   });
 
-  it('maps the per-user plan limit answered with 400 to a user OktopostRateLimitError', async () => {
+  it('maps a 429 carrying Errors.API.RateLimit to a user OktopostRateLimitError', async () => {
     const errors = { API: { RateLimit: 'Rate limit exceeded' } };
-    const fetch = mockFetch(400, { Result: false, Errors: errors, Codes: { API: { RateLimit: -1 } } });
+    const fetch = mockFetch(429, { Result: false, Errors: errors });
+    const client = createClient({ fetch });
+
+    await expect(client.get('/campaign')).rejects.toMatchObject({
+      message: 'Rate limit exceeded',
+      statusCode: 429,
+      limit: 'user',
+      errors,
+    });
+  });
+
+  it('maps a 429 whose body cannot be read to a burst OktopostRateLimitError', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: vi.fn().mockRejectedValue(new Error('body stream already read')),
+      headers: new Headers(),
+    });
+    const client = createClient({ fetch });
+
+    await expect(client.get('/campaign')).rejects.toMatchObject({
+      message: 'Too Many Requests',
+      statusCode: 429,
+      limit: 'burst',
+    });
+  });
+
+  it('maps a non-429 Errors.API.RateLimit to a user OktopostRateLimitError', async () => {
+    const errors = { API: { RateLimit: 'Rate limit exceeded' } };
+    const fetch = mockFetch(400, {
+      Result: false,
+      Errors: errors,
+      Codes: { API: { RateLimit: -1 } },
+    });
     const client = createClient({ fetch });
 
     const error = await client.get('/campaign').catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(OktopostRateLimitError);
     expect(error).toBeInstanceOf(OktopostApiError);
-    expect(error).toMatchObject({ message: 'Rate limit exceeded', statusCode: 400, limit: 'user', errors });
+    expect(error).toMatchObject({
+      message: 'Rate limit exceeded',
+      statusCode: 400,
+      limit: 'user',
+      errors,
+    });
   });
 
   it('retries a rate limit after its Retry-After', async () => {

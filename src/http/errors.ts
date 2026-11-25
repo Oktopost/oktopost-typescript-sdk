@@ -1,8 +1,8 @@
-/** `Errors` of an API response. The plan limit sends `{ API: { RateLimit: '...' } }`, without an `Error` key. */
-export type OktopostApiErrors = Record<string, { Error: string }>;
+import { parseRetryAfter } from './retry-after.js';
 
-/** Which limit refused the call: `user` is the per-user API plan limit, `burst` a short block after too many calls. */
-export type OktopostRateLimit = 'user' | 'burst';
+export type OktopostApiErrors = Record<string, Record<string, string>>;
+
+export type OktopostRateLimitKind = 'user' | 'burst';
 
 export class OktopostError extends Error {
   readonly statusCode?: number;
@@ -34,12 +34,6 @@ function firstErrorMessage(errors: unknown): string | undefined {
     }
   }
   return undefined;
-}
-
-function apiErrorKey(errors: unknown, key: string): string | undefined {
-  const api = isRecord(errors) ? errors.API : undefined;
-  const value = isRecord(api) ? api[key] : undefined;
-  return typeof value === 'string' ? value : undefined;
 }
 
 export class OktopostApiError extends OktopostError {
@@ -80,16 +74,16 @@ export class OktopostNotFoundError extends OktopostApiError {
 }
 
 export interface OktopostRateLimitErrorOptions {
-  /** HTTP status of the response: 429, or 400 for the per-user plan limit on API versions that still answer 400. */
   statusCode?: number;
-  limit?: OktopostRateLimit;
-  /** Seconds to wait before retrying, from the `Retry-After` header. */
+  limit?: OktopostRateLimitKind;
   retryAfter?: number;
   errors?: OktopostApiErrors;
 }
 
 export class OktopostRateLimitError extends OktopostApiError {
-  readonly limit: OktopostRateLimit;
+  /** `user`: the per-user API plan limit; `burst`: a short block after too many calls. */
+  readonly limit: OktopostRateLimitKind;
+  /** Seconds to wait before retrying, from the `Retry-After` header. */
   readonly retryAfter?: number;
 
   constructor(
@@ -101,30 +95,26 @@ export class OktopostRateLimitError extends OktopostApiError {
     this.limit = options.limit ?? 'burst';
     this.retryAfter = options.retryAfter;
   }
-}
 
-export function rateLimitErrorFromResponse(
-  statusCode: number,
-  data: { Errors?: OktopostApiErrors } | undefined,
-  retryAfterHeader: string | null | undefined,
-  bodyText?: string,
-): OktopostRateLimitError | undefined {
-  const planLimitMessage = apiErrorKey(data?.Errors, 'RateLimit');
-  if (statusCode !== 429 && planLimitMessage === undefined) {
-    return undefined;
+  static fromResponse(
+    statusCode: number,
+    data?: { Errors?: OktopostApiErrors },
+    retryAfterHeader?: string | null,
+    bodyText?: string,
+  ): OktopostRateLimitError {
+    const userLimitMessage = data?.Errors?.API?.RateLimit;
+    return new OktopostRateLimitError(
+      userLimitMessage ??
+        firstErrorMessage(data?.Errors) ??
+        (bodyText?.trim() || 'Too Many Requests'),
+      {
+        statusCode,
+        limit: userLimitMessage === undefined ? 'burst' : 'user',
+        retryAfter: parseRetryAfter(retryAfterHeader),
+        errors: data?.Errors,
+      },
+    );
   }
-
-  return new OktopostRateLimitError(
-    planLimitMessage ??
-      firstErrorMessage(data?.Errors) ??
-      (bodyText?.trim() || 'Too Many Requests'),
-    {
-      statusCode,
-      limit: planLimitMessage === undefined ? 'burst' : 'user',
-      retryAfter: parseRetryAfter(retryAfterHeader),
-      errors: data?.Errors,
-    },
-  );
 }
 
 export class OktopostTimeoutError extends OktopostError {
@@ -132,32 +122,4 @@ export class OktopostTimeoutError extends OktopostError {
     super(message);
     this.name = 'OktopostTimeoutError';
   }
-}
-
-/** RFC 9110 IMF-fixdate, the HTTP date `Retry-After` may carry; `Date.parse` alone accepts values such as "1.5". */
-const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/;
-
-export function parseRetryAfter(
-  value: string | null | undefined,
-  now: number = Date.now(),
-): number | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-
-  if (/^\d+$/.test(trimmed)) {
-    return Number(trimmed);
-  }
-
-  if (!HTTP_DATE.test(trimmed)) {
-    return undefined;
-  }
-
-  const retryAt = Date.parse(trimmed);
-  if (Number.isNaN(retryAt)) {
-    return undefined;
-  }
-
-  return Math.max(0, Math.ceil((retryAt - now) / 1_000));
 }

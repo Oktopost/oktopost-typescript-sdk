@@ -12,7 +12,7 @@ export interface RetryConfig {
   maxRateLimitWaitMs?: number;
 }
 
-export const DEFAULT_MAX_RATE_LIMIT_WAIT_MS = 60_000;
+const DEFAULT_MAX_RATE_LIMIT_WAIT_MS = 60_000;
 const MAX_BACKOFF_MS = 60_000;
 
 export async function retryWithBackoff<T>(fn: () => Promise<T>, config: RetryConfig): Promise<T> {
@@ -36,8 +36,8 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, config: RetryCon
       }
 
       if (error instanceof OktopostRateLimitError) {
-        const waitMs = rateLimitWaitMs(error, attempt + 1, baseDelayMs);
-        if (attempt >= maxRetries || waitMs === undefined || waitMs > maxRateLimitWaitMs) {
+        const waitMs = rateLimitWaitMs(error, attempt + 1, baseDelayMs, maxRateLimitWaitMs);
+        if (attempt >= maxRetries || waitMs === undefined) {
           throw error;
         }
         attempt++;
@@ -46,7 +46,7 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, config: RetryCon
       }
 
       if (error instanceof OktopostError && error.statusCode !== undefined) {
-        if (error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 429) {
+        if (error.statusCode >= 400 && error.statusCode < 500) {
           throw error;
         }
       }
@@ -61,17 +61,15 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, config: RetryCon
   }
 }
 
-/**
- * Retry-After when the API sent it. Without it a burst block can last up to 15 minutes, so the wait is unknown; the
- * plan limit's per-second cap clears within a second, so it gets the usual backoff.
- */
 function rateLimitWaitMs(
   error: OktopostRateLimitError,
   attempt: number,
   baseDelayMs: number,
+  maxRateLimitWaitMs: number,
 ): number | undefined {
   if (error.retryAfter !== undefined) {
-    return error.retryAfter * 1_000;
+    const retryAfterMs = error.retryAfter * 1_000;
+    return retryAfterMs > maxRateLimitWaitMs ? undefined : retryAfterMs;
   }
   return error.limit === 'user' ? backoffMs(attempt, baseDelayMs) : undefined;
 }

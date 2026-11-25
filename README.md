@@ -33,14 +33,14 @@ console.log(campaigns.Items);
 const client = new Oktopost({
   accountId: 'your-account-id',
   apiKey: 'your-api-key',
-  region: 'us',           // 'us' (default) or 'eu'
-  baseUrl: undefined,      // Override base URL for testing
-  timeout: 30_000,         // Request timeout in ms (default: 30s)
-  maxRetries: 3,           // Max retry attempts (default: 3)
+  region: 'us',               // 'us' (default) or 'eu'
+  baseUrl: undefined,         // Override base URL for testing
+  timeout: 30_000,            // Request timeout in ms (default: 30s)
+  maxRetries: 3,              // Max retry attempts (default: 3)
   maxRateLimitWaitMs: 60_000, // Longest Retry-After wait before a retry (default: 60s)
-  fetch: customFetch,      // Custom fetch implementation
-  onRequest: (info) => {}, // Debug hook: called before each request
-  onResponse: (info) => {},// Debug hook: called after each response
+  fetch: customFetch,         // Custom fetch implementation
+  onRequest: (info) => {},    // Debug hook: called before each request
+  onResponse: (info) => {},   // Debug hook: called after each response
 });
 ```
 
@@ -131,13 +131,9 @@ console.log(event.event, event.data);
 The SDK includes built-in retry logic and proactive rate limiting:
 
 - **Retries**: Automatically retries 5xx (server errors) with exponential backoff
-- **Rate limits**: waits for `Retry-After` and retries, up to `maxRateLimitWaitMs`; a longer wait, or a burst block
-  without `Retry-After` (it can last 15 minutes), throws `OktopostRateLimitError` so you decide. The per-user plan
-  limit, which older API versions answer with 400 and `Errors.API.RateLimit`, is an `OktopostRateLimitError` with
-  `limit: 'user'` too
+- **Rate-limit errors**: Waits for `Retry-After` and retries, up to `maxRateLimitWaitMs`; a longer wait, or a burst block without `Retry-After` (it can last 15 minutes), throws `OktopostRateLimitError` so you decide. The per-user plan limit (`Errors.API.RateLimit`, which the API answers today with a status other than 429) is an `OktopostRateLimitError` with `limit: 'user'` and is retried with backoff
 - **Never retries**: 400 (other than the plan limit), 401, 403, 404 (client errors)
-- **Rate limiting**: Proactively delays requests at 85% of the documented limits (60 per second, 120 per 5 seconds)
-  to prevent the 15-minute lockout; requests sent in parallel count before they go
+- **Rate limiting**: Proactively delays requests at 85% of the documented limits (60 per second, 120 per 5 seconds) to prevent the 15-minute lockout; requests sent in parallel count before they go
 
 ## TypeScript
 

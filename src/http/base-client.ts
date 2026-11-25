@@ -9,7 +9,6 @@ import {
   OktopostTimeoutError,
   OktopostNotFoundError,
   OktopostPermissionError,
-  rateLimitErrorFromResponse,
   type OktopostApiErrors,
 } from './errors.js';
 import { SDK_VERSION } from '../version.js';
@@ -117,7 +116,7 @@ export class BaseHttpClient {
         const durationMs = Date.now() - startTime;
 
         if (response.status === 429) {
-          throw await this.rateLimitError(response);
+          throw await this.readRateLimitError(response);
         }
 
         if (response.status === 401) {
@@ -156,13 +155,12 @@ export class BaseHttpClient {
           durationMs,
         });
 
-        const planLimitError = rateLimitErrorFromResponse(
-          response.status,
-          data,
-          response.headers.get('retry-after'),
-        );
-        if (planLimitError) {
-          throw planLimitError;
+        if (data.Errors?.API?.RateLimit !== undefined) {
+          throw OktopostRateLimitError.fromResponse(
+            response.status,
+            data,
+            response.headers.get('retry-after'),
+          );
         }
 
         if (data.Result === false) {
@@ -183,19 +181,13 @@ export class BaseHttpClient {
     );
   }
 
-  /** A 429 body is plain text before the API answers it with JSON, so it is read as text and parsed when it can be. */
-  private async rateLimitError(response: Response): Promise<OktopostRateLimitError> {
+  private async readRateLimitError(response: Response): Promise<OktopostRateLimitError> {
     const text = await response.text().catch(() => '');
-    let data: { Errors?: OktopostApiErrors } | undefined;
-    try {
-      data = JSON.parse(text) as { Errors?: OktopostApiErrors };
-    } catch {
-      data = undefined;
-    }
-
-    return (
-      rateLimitErrorFromResponse(429, data, response.headers.get('retry-after'), text) ??
-      new OktopostRateLimitError()
+    return OktopostRateLimitError.fromResponse(
+      response.status,
+      parseJson(text),
+      response.headers.get('retry-after'),
+      text,
     );
   }
 
@@ -241,5 +233,13 @@ export class BaseHttpClient {
     }
 
     params.append(key, String(value));
+  }
+}
+
+function parseJson(text: string): { Errors?: OktopostApiErrors } | undefined {
+  try {
+    return JSON.parse(text) as { Errors?: OktopostApiErrors };
+  } catch {
+    return undefined;
   }
 }

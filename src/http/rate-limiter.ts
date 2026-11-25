@@ -1,9 +1,10 @@
+const PER_SECOND_LIMIT = 60;
+const PER_5_SECOND_LIMIT = 120;
 const SAFETY_FACTOR = 0.85;
 
-/** The API's documented limits: 60 calls per second and 120 per 5 seconds, kept under by the safety factor. */
 const WINDOWS = [
-  { durationMs: 1_000, limit: Math.floor(60 * SAFETY_FACTOR) },
-  { durationMs: 5_000, limit: Math.floor(120 * SAFETY_FACTOR) },
+  { durationMs: 1_000, limit: Math.floor(PER_SECOND_LIMIT * SAFETY_FACTOR) },
+  { durationMs: 5_000, limit: Math.floor(PER_5_SECOND_LIMIT * SAFETY_FACTOR) },
 ];
 
 const LONGEST_WINDOW_MS = Math.max(...WINDOWS.map((window) => window.durationMs));
@@ -16,7 +17,7 @@ export class RateLimiter {
       const now = Date.now();
       this.timestamps = this.timestamps.filter((t) => t > now - LONGEST_WINDOW_MS);
 
-      const waitMs = this.waitMs(now);
+      const waitMs = this.msUntilFree(now);
       if (waitMs <= 0) {
         this.timestamps.push(now);
         return;
@@ -26,7 +27,7 @@ export class RateLimiter {
     }
   }
 
-  private waitMs(now: number): number {
+  private msUntilFree(now: number): number {
     let waitMs = 0;
     for (const { durationMs, limit } of WINDOWS) {
       const inWindow = this.timestamps.filter((t) => t > now - durationMs);

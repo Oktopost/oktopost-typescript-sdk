@@ -113,16 +113,31 @@ describe('retryWithBackoff', () => {
       expect(fn).toHaveBeenCalledTimes(1);
     });
 
-    it('retries the per-user plan limit answered with 400 after a backoff', async () => {
+    it('retries the per-user plan limit after a backoff', async () => {
       const fn = vi
         .fn()
-        .mockRejectedValueOnce(
-          new OktopostRateLimitError('Rate limit exceeded', { statusCode: 400, limit: 'user' }),
-        )
+        .mockRejectedValueOnce(new OktopostRateLimitError('Rate limit exceeded', { limit: 'user' }))
         .mockResolvedValue('ok');
 
       const promise = retryWithBackoff(fn, { maxRetries: 1, baseDelayMs: 1 });
       await vi.advanceTimersByTimeAsync(1_001);
+
+      await expect(promise).resolves.toBe('ok');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it('backs off the plan limit even past the Retry-After cap', async () => {
+      const fn = vi
+        .fn()
+        .mockRejectedValueOnce(new OktopostRateLimitError('Rate limit exceeded', { limit: 'user' }))
+        .mockResolvedValue('ok');
+
+      const promise = retryWithBackoff(fn, {
+        maxRetries: 1,
+        baseDelayMs: 1_000,
+        maxRateLimitWaitMs: 500,
+      });
+      await vi.advanceTimersByTimeAsync(2_000);
 
       await expect(promise).resolves.toBe('ok');
       expect(fn).toHaveBeenCalledTimes(2);

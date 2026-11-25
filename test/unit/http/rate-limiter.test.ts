@@ -54,16 +54,19 @@ describe('RateLimiter', () => {
     expect(resolved).toBe(true);
   });
 
-  it('forgets calls older than the longest window', async () => {
+  it('checks every limit again after each sleep', async () => {
     const limiter = new RateLimiter();
-    const burst = acquireMany(limiter, 51);
-    await vi.advanceTimersByTimeAsync(0);
-    await burst;
+    let acquired = 0;
+    const calls = Array.from({ length: 103 }, () => limiter.acquire().then(() => acquired++));
 
-    vi.advanceTimersByTime(5_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(acquired).toBe(102);
 
-    const promise = acquireMany(limiter, 51);
-    await vi.advanceTimersByTimeAsync(0);
-    await expect(promise).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(3_999);
+    expect(acquired).toBe(102);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(acquired).toBe(103);
+    await Promise.all(calls);
   });
 });

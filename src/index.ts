@@ -15,7 +15,7 @@ export {
 } from './http/errors.js';
 export type {
   OktopostApiErrors,
-  OktopostRateLimit,
+  OktopostRateLimitKind,
   OktopostRateLimitErrorOptions,
 } from './http/errors.js';
 export { SDK_VERSION } from './version.js';

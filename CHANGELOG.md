@@ -8,16 +8,17 @@ Rate limits: honor `Retry-After` and say which limit was hit.
 
 - `OktopostRateLimitError.limit` (`'user'` for the per-user API plan limit, `'burst'` for a short block after too many calls) and `OktopostRateLimitError.retryAfter` (seconds, from the `Retry-After` header).
 - `maxRateLimitWaitMs` client option (default 60 s): the longest `Retry-After` the SDK waits before a retry.
-- Exported types `OktopostApiErrors`, `OktopostRateLimit`, `OktopostRateLimitErrorOptions`.
+- Exported types `OktopostApiErrors`, `OktopostRateLimitKind`, `OktopostRateLimitErrorOptions`.
 
 ### Changed
 
-- A rate limit no longer sleeps a flat 15 minutes per retry. The SDK waits for `Retry-After` up to `maxRateLimitWaitMs`; a longer wait, or a burst block without `Retry-After`, throws `OktopostRateLimitError` at once.
-- The per-user plan limit, which the API answers with 400 and `Errors.API.RateLimit`, throws `OktopostRateLimitError` (`limit: 'user'`, `statusCode: 400`) instead of `OktopostApiError` "Unknown API error", and is retried with backoff.
-- `OktopostRateLimitError` extends `OktopostApiError` (it still extends `OktopostError`) and carries the response's `Errors`; a 429 keeps the body's message. Code that checks `instanceof OktopostApiError` before `instanceof OktopostRateLimitError` now sends rate limits down the first branch: check `OktopostRateLimitError` first.
+- **Breaking**: A rate limit no longer sleeps a flat 15 minutes per retry. The SDK waits for `Retry-After` up to `maxRateLimitWaitMs`; a longer wait, or a burst block without `Retry-After`, throws `OktopostRateLimitError` at once.
+- **Breaking**: The per-user plan limit (`Errors.API.RateLimit`, which the API answers today with a status other than 429) throws `OktopostRateLimitError` (`limit: 'user'`, `statusCode` of the response) instead of `OktopostApiError` "Unknown API error", and is retried with backoff.
+- **Breaking**: `OktopostRateLimitError` extends `OktopostApiError` (it still extends `OktopostError`) and carries the response's `Errors`; a 429 keeps the body's message. Code that checks `instanceof OktopostApiError` before `instanceof OktopostRateLimitError` now sends rate limits down the first branch: check `OktopostRateLimitError` first.
 - `Retry-After` is read as delta-seconds or an HTTP date (IMF-fixdate); any other value is ignored.
 - The built-in throttle counts a request when it is sent, so parallel requests are counted, and follows the documented limits (60 per second, 120 per 5 seconds, at 85%) instead of 51 per minute.
 - `OktopostApiError` without `Errors.API.Error` takes its message from the first field error instead of "Unknown API error".
+- `OktopostApiError.errors` is typed `OktopostApiErrors` (`Record<string, Record<string, string>>`), so codes other than `Error`, such as `API.RateLimit`, type-check.
 
 ## 1.1.0
 
