@@ -37,6 +37,7 @@ const client = new Oktopost({
   baseUrl: undefined,      // Override base URL for testing
   timeout: 30_000,         // Request timeout in ms (default: 30s)
   maxRetries: 3,           // Max retry attempts (default: 3)
+  maxRateLimitWaitMs: 60_000, // Longest Retry-After wait before a retry (default: 60s)
   fetch: customFetch,      // Custom fetch implementation
   onRequest: (info) => {}, // Debug hook: called before each request
   onResponse: (info) => {},// Debug hook: called after each response
@@ -101,7 +102,9 @@ try {
   } else if (err instanceof OktopostAuthError) {
     console.log('Invalid credentials');
   } else if (err instanceof OktopostRateLimitError) {
-    console.log('Rate limited, retry after cooldown');
+    // limit: 'user' (your API plan limit) or 'burst' (a short block after too many calls);
+    // retryAfter: seconds to wait, when the API sent Retry-After
+    console.log('Rate limited:', err.limit, err.retryAfter);
   } else if (err instanceof OktopostApiError) {
     console.log('API error:', err.message, err.errors);
   }
@@ -127,9 +130,14 @@ console.log(event.event, event.data);
 
 The SDK includes built-in retry logic and proactive rate limiting:
 
-- **Retries**: Automatically retries on 429 (rate limit) and 5xx (server errors) with exponential backoff
-- **Never retries**: 400, 401, 403, 404 (client errors)
-- **Rate limiting**: Proactively delays requests at 85% of burst limits to prevent the 15-minute lockout
+- **Retries**: Automatically retries 5xx (server errors) with exponential backoff
+- **Rate limits**: waits for `Retry-After` and retries, up to `maxRateLimitWaitMs`; a longer wait, or a burst block
+  without `Retry-After` (it can last 15 minutes), throws `OktopostRateLimitError` so you decide. The per-user plan
+  limit, which older API versions answer with 400 and `Errors.API.RateLimit`, is an `OktopostRateLimitError` with
+  `limit: 'user'` too
+- **Never retries**: 400 (other than the plan limit), 401, 403, 404 (client errors)
+- **Rate limiting**: Proactively delays requests at 85% of the documented limits (60 per second, 120 per 5 seconds)
+  to prevent the 15-minute lockout; requests sent in parallel count before they go
 
 ## TypeScript
 

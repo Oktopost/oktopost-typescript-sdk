@@ -38,7 +38,8 @@ function mockFetch(status: number, body: unknown, headers: Record<string, string
     ok: status >= 200 && status < 300,
     status,
     json: vi.fn().mockResolvedValue(body),
-    headers: new Map(Object.entries(headers)),
+    text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body)),
+    headers: new Headers(headers),
   });
 }
 
@@ -194,11 +195,64 @@ describe('BaseHttpClient', () => {
     await expect(client.get('/campaign/999')).rejects.toThrow(OktopostNotFoundError);
   });
 
-  it('maps 429 to OktopostRateLimitError', async () => {
-    const fetch = mockFetch(429, {});
+  it('maps a plain-text 429 to a burst OktopostRateLimitError with Retry-After', async () => {
+    const fetch = mockFetch(429, 'Too Many Requests', { 'Retry-After': '30' });
     const client = createClient({ fetch });
 
-    await expect(client.get('/campaign')).rejects.toThrow(OktopostRateLimitError);
+    const error = await client.get('/campaign').catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OktopostRateLimitError);
+    expect(error).toMatchObject({ message: 'Too Many Requests', statusCode: 429, limit: 'burst', retryAfter: 30 });
+  });
+
+  it('keeps the text of a plain-text 429 body as the message', async () => {
+    const fetch = mockFetch(429, 'Blocked for 15 minutes');
+    const client = createClient({ fetch });
+
+    await expect(client.get('/campaign')).rejects.toMatchObject({ message: 'Blocked for 15 minutes' });
+  });
+
+  it('reads the message of a JSON 429 body', async () => {
+    const fetch = mockFetch(429, { Result: false, Errors: { API: { BurstLimit: 'Account blocked' } } });
+    const client = createClient({ fetch });
+
+    await expect(client.get('/campaign')).rejects.toMatchObject({
+      message: 'Account blocked',
+      limit: 'burst',
+      retryAfter: undefined,
+    });
+  });
+
+  it('maps the per-user plan limit answered with 400 to a user OktopostRateLimitError', async () => {
+    const errors = { API: { RateLimit: 'Rate limit exceeded' } };
+    const fetch = mockFetch(400, { Result: false, Errors: errors, Codes: { API: { RateLimit: -1 } } });
+    const client = createClient({ fetch });
+
+    const error = await client.get('/campaign').catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OktopostRateLimitError);
+    expect(error).toBeInstanceOf(OktopostApiError);
+    expect(error).toMatchObject({ message: 'Rate limit exceeded', statusCode: 400, limit: 'user', errors });
+  });
+
+  it('retries a rate limit after its Retry-After', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(await mockFetch(429, 'Too Many Requests', { 'Retry-After': '2' })())
+      .mockResolvedValueOnce(await mockFetch(200, { Result: true, Campaigns: [] })());
+    const client = createClient({ fetch, maxRetries: 1 });
+
+    vi.useFakeTimers();
+    try {
+      const promise = client.get('/campaign');
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(promise).resolves.toEqual({ Result: true, Campaigns: [] });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('handles Result: false in response', async () => {

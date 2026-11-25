@@ -18,6 +18,8 @@ export interface OktopostConfig {
   baseUrl?: string;
   timeout?: number;
   maxRetries?: number;
+  /** Longest wait for a rate limit before a retry; a longer `Retry-After` throws `OktopostRateLimitError`. Default 60 s. */
+  maxRateLimitWaitMs?: number;
   fetch?: typeof globalThis.fetch;
   onRequest?: (info: OktopostRequestInfo) => void;
   onResponse?: (info: OktopostResponseInfo) => void;
@@ -57,6 +59,7 @@ export class Oktopost {
       apiKey: config.apiKey,
       timeout: config.timeout ?? 30_000,
       maxRetries: config.maxRetries ?? 3,
+      maxRateLimitWaitMs: config.maxRateLimitWaitMs,
       fetch: config.fetch,
       onRequest: config.onRequest,
       onResponse: config.onResponse,

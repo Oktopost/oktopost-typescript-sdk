@@ -6,6 +6,7 @@ import {
   OktopostNotFoundError,
   OktopostRateLimitError,
   OktopostTimeoutError,
+  parseRetryAfter,
 } from '../../../src/http/errors.js';
 
 describe('OktopostError', () => {
@@ -67,6 +68,37 @@ describe('OktopostApiError', () => {
       const error = OktopostApiError.fromResponse(500, { Errors: {} });
       expect(error.message).toBe('Unknown API error');
     });
+
+    it('uses the first field error when API.Error is missing', () => {
+      const error = OktopostApiError.fromResponse(400, {
+        Errors: { Name: { Required: 'Name is required' } },
+      } as never);
+      expect(error.message).toBe('Name is required');
+    });
+
+    it('keeps the default message for an Errors list', () => {
+      const errors = [{ Id: 'a', ErrorField: 'Email', ErrorMessage: 'Invalid email' }];
+      const error = OktopostApiError.fromResponse(400, { Errors: errors } as never);
+      expect(error.message).toBe('Unknown API error');
+    });
+  });
+});
+
+describe('parseRetryAfter', () => {
+  const now = Date.parse('2026-11-25T12:00:00Z');
+
+  it.each([
+    ['30', 30],
+    [' 7 ', 7],
+    ['Wed, 25 Nov 2026 12:00:42 GMT', 42],
+    ['Wed, 25 Nov 2026 11:59:00 GMT', 0],
+    ['soon', undefined],
+    ['1.5', undefined],
+    ['-1', undefined],
+    ['', undefined],
+    [null, undefined],
+  ])('reads %j as %j seconds', (header, expected) => {
+    expect(parseRetryAfter(header, now)).toBe(expected);
   });
 });
 
@@ -121,9 +153,12 @@ describe('OktopostRateLimitError', () => {
     expect(error.message).toBe('Rate limit exceeded');
     expect(error.statusCode).toBe(429);
     expect(error.name).toBe('OktopostRateLimitError');
+    expect(error.limit).toBe('burst');
+    expect(error.retryAfter).toBeUndefined();
   });
 
-  it('extends OktopostError', () => {
+  it('extends OktopostApiError', () => {
+    expect(new OktopostRateLimitError()).toBeInstanceOf(OktopostApiError);
     expect(new OktopostRateLimitError()).toBeInstanceOf(OktopostError);
   });
 });

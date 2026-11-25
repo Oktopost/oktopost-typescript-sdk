@@ -61,20 +61,80 @@ describe('retryWithBackoff', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('retries OktopostRateLimitError', async () => {
-    const fn = vi
-      .fn()
-      .mockRejectedValueOnce(new OktopostRateLimitError())
-      .mockResolvedValue('ok');
+  describe('rate limits', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
 
-    vi.useFakeTimers();
-    const promise = retryWithBackoff(fn, { maxRetries: 1, baseDelayMs: 1 });
-    await vi.advanceTimersByTimeAsync(15 * 60 * 1_000 + 100);
-    const result = await promise;
-    vi.useRealTimers();
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-    expect(result).toBe('ok');
-    expect(fn).toHaveBeenCalledTimes(2);
+    it('waits for Retry-After before retrying', async () => {
+      const fn = vi
+        .fn()
+        .mockRejectedValueOnce(new OktopostRateLimitError('Too Many Requests', { retryAfter: 5 }))
+        .mockResolvedValue('ok');
+
+      const promise = retryWithBackoff(fn, { maxRetries: 1, baseDelayMs: 1 });
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(fn).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+
+      await expect(promise).resolves.toBe('ok');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws at once when Retry-After is longer than the wait cap', async () => {
+      const error = new OktopostRateLimitError('Too Many Requests', { retryAfter: 61 });
+      const fn = vi.fn().mockRejectedValue(error);
+
+      await expect(retryWithBackoff(fn, { maxRetries: 3 })).rejects.toBe(error);
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits longer when the caller raises the wait cap', async () => {
+      const fn = vi
+        .fn()
+        .mockRejectedValueOnce(new OktopostRateLimitError('Too Many Requests', { retryAfter: 900 }))
+        .mockResolvedValue('ok');
+
+      const promise = retryWithBackoff(fn, { maxRetries: 1, maxRateLimitWaitMs: 15 * 60 * 1_000 });
+      await vi.advanceTimersByTimeAsync(900_000);
+
+      await expect(promise).resolves.toBe('ok');
+    });
+
+    it('throws a burst block without Retry-After, since its length is unknown', async () => {
+      const error = new OktopostRateLimitError();
+      const fn = vi.fn().mockRejectedValue(error);
+
+      await expect(retryWithBackoff(fn, { maxRetries: 3 })).rejects.toBe(error);
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries the per-user plan limit answered with 400 after a backoff', async () => {
+      const fn = vi
+        .fn()
+        .mockRejectedValueOnce(
+          new OktopostRateLimitError('Rate limit exceeded', { statusCode: 400, limit: 'user' }),
+        )
+        .mockResolvedValue('ok');
+
+      const promise = retryWithBackoff(fn, { maxRetries: 1, baseDelayMs: 1 });
+      await vi.advanceTimersByTimeAsync(1_001);
+
+      await expect(promise).resolves.toBe('ok');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws a rate limit once retries are used up', async () => {
+      const error = new OktopostRateLimitError('Too Many Requests', { retryAfter: 1 });
+      const fn = vi.fn().mockRejectedValue(error);
+
+      await expect(retryWithBackoff(fn, { maxRetries: 0 })).rejects.toBe(error);
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('retries generic errors', async () => {

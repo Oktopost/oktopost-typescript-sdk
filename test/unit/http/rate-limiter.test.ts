@@ -1,5 +1,9 @@
 import { RateLimiter } from '../../../src/http/rate-limiter.js';
 
+async function acquireMany(limiter: RateLimiter, count: number): Promise<void> {
+  await Promise.all(Array.from({ length: count }, () => limiter.acquire()));
+}
+
 describe('RateLimiter', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -11,56 +15,54 @@ describe('RateLimiter', () => {
 
   it('does not delay when under all limits', async () => {
     const limiter = new RateLimiter();
-    const promise = limiter.waitIfNeeded();
+    const promise = limiter.acquire();
     await vi.advanceTimersByTimeAsync(0);
     await expect(promise).resolves.toBeUndefined();
   });
 
-  it('delays when approaching 5-second burst limit', async () => {
+  it('counts calls started in parallel before they are sent', async () => {
     const limiter = new RateLimiter();
+    let acquired = 0;
+    const calls = Array.from({ length: 52 }, () => limiter.acquire().then(() => acquired++));
 
-    for (let i = 0; i < 102; i++) {
-      limiter.recordRequest();
-    }
+    await vi.advanceTimersByTimeAsync(0);
+    expect(acquired).toBe(51);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(acquired).toBe(52);
+    await Promise.all(calls);
+  });
+
+  it('delays at the 5-second limit until the oldest call leaves the window', async () => {
+    const limiter = new RateLimiter();
+    const acquireAt0 = acquireMany(limiter, 51);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await acquireAt0;
+    const acquireAt1000 = acquireMany(limiter, 51);
+    await vi.advanceTimersByTimeAsync(0);
+    await acquireAt1000;
 
     let resolved = false;
-    limiter.waitIfNeeded().then(() => {
+    void limiter.acquire().then(() => {
       resolved = true;
     });
 
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(3_999);
     expect(resolved).toBe(false);
 
-    await vi.advanceTimersByTimeAsync(5_200);
+    await vi.advanceTimersByTimeAsync(1);
     expect(resolved).toBe(true);
   });
 
-  it('delays when approaching 1-minute limit', async () => {
+  it('forgets calls older than the longest window', async () => {
     const limiter = new RateLimiter();
+    const burst = acquireMany(limiter, 51);
+    await vi.advanceTimersByTimeAsync(0);
+    await burst;
 
-    for (let i = 0; i < 51; i++) {
-      limiter.recordRequest();
-    }
+    vi.advanceTimersByTime(5_000);
 
-    let resolved = false;
-    limiter.waitIfNeeded().then(() => {
-      resolved = true;
-    });
-
-    await vi.advanceTimersByTimeAsync(100);
-    expect(resolved).toBe(false);
-
-    await vi.advanceTimersByTimeAsync(60_200);
-    expect(resolved).toBe(true);
-  });
-
-  it('records requests and prunes old timestamps', async () => {
-    const limiter = new RateLimiter();
-    limiter.recordRequest();
-
-    vi.advanceTimersByTime(61_000);
-
-    const promise = limiter.waitIfNeeded();
+    const promise = acquireMany(limiter, 51);
     await vi.advanceTimersByTimeAsync(0);
     await expect(promise).resolves.toBeUndefined();
   });

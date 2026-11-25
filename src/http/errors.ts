@@ -1,3 +1,9 @@
+/** `Errors` of an API response. The plan limit sends `{ API: { RateLimit: '...' } }`, without an `Error` key. */
+export type OktopostApiErrors = Record<string, { Error: string }>;
+
+/** Which limit refused the call: `user` is the per-user API plan limit, `burst` a short block after too many calls. */
+export type OktopostRateLimit = 'user' | 'burst';
+
 export class OktopostError extends Error {
   readonly statusCode?: number;
 
@@ -9,20 +15,45 @@ export class OktopostError extends Error {
   }
 }
 
-export class OktopostApiError extends OktopostError {
-  readonly errors?: Record<string, { Error: string }>;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
-  constructor(message: string, statusCode: number, errors?: Record<string, { Error: string }>) {
+function firstErrorMessage(errors: unknown): string | undefined {
+  if (!isRecord(errors)) {
+    return undefined;
+  }
+  for (const fieldErrors of Object.values(errors)) {
+    if (!isRecord(fieldErrors)) {
+      continue;
+    }
+    for (const message of Object.values(fieldErrors)) {
+      if (typeof message === 'string' && message !== '') {
+        return message;
+      }
+    }
+  }
+  return undefined;
+}
+
+function apiErrorKey(errors: unknown, key: string): string | undefined {
+  const api = isRecord(errors) ? errors.API : undefined;
+  const value = isRecord(api) ? api[key] : undefined;
+  return typeof value === 'string' ? value : undefined;
+}
+
+export class OktopostApiError extends OktopostError {
+  readonly errors?: OktopostApiErrors;
+
+  constructor(message: string, statusCode: number, errors?: OktopostApiErrors) {
     super(message, statusCode);
     this.name = 'OktopostApiError';
     this.errors = errors;
   }
 
-  static fromResponse(
-    statusCode: number,
-    data: { Errors?: Record<string, { Error: string }> },
-  ): OktopostApiError {
-    const apiErrorMessage = data.Errors?.API?.Error ?? 'Unknown API error';
+  static fromResponse(statusCode: number, data: { Errors?: OktopostApiErrors }): OktopostApiError {
+    const apiErrorMessage =
+      data.Errors?.API?.Error ?? firstErrorMessage(data.Errors) ?? 'Unknown API error';
     return new OktopostApiError(apiErrorMessage, statusCode, data.Errors);
   }
 }
@@ -48,11 +79,52 @@ export class OktopostNotFoundError extends OktopostApiError {
   }
 }
 
-export class OktopostRateLimitError extends OktopostError {
-  constructor(message: string = 'Rate limit exceeded') {
-    super(message, 429);
+export interface OktopostRateLimitErrorOptions {
+  /** HTTP status of the response: 429, or 400 for the per-user plan limit on API versions that still answer 400. */
+  statusCode?: number;
+  limit?: OktopostRateLimit;
+  /** Seconds to wait before retrying, from the `Retry-After` header. */
+  retryAfter?: number;
+  errors?: OktopostApiErrors;
+}
+
+export class OktopostRateLimitError extends OktopostApiError {
+  readonly limit: OktopostRateLimit;
+  readonly retryAfter?: number;
+
+  constructor(
+    message: string = 'Rate limit exceeded',
+    options: OktopostRateLimitErrorOptions = {},
+  ) {
+    super(message, options.statusCode ?? 429, options.errors);
     this.name = 'OktopostRateLimitError';
+    this.limit = options.limit ?? 'burst';
+    this.retryAfter = options.retryAfter;
   }
+}
+
+export function rateLimitErrorFromResponse(
+  statusCode: number,
+  data: { Errors?: OktopostApiErrors } | undefined,
+  retryAfterHeader: string | null | undefined,
+  bodyText?: string,
+): OktopostRateLimitError | undefined {
+  const planLimitMessage = apiErrorKey(data?.Errors, 'RateLimit');
+  if (statusCode !== 429 && planLimitMessage === undefined) {
+    return undefined;
+  }
+
+  return new OktopostRateLimitError(
+    planLimitMessage ??
+      firstErrorMessage(data?.Errors) ??
+      (bodyText?.trim() || 'Too Many Requests'),
+    {
+      statusCode,
+      limit: planLimitMessage === undefined ? 'burst' : 'user',
+      retryAfter: parseRetryAfter(retryAfterHeader),
+      errors: data?.Errors,
+    },
+  );
 }
 
 export class OktopostTimeoutError extends OktopostError {
@@ -60,4 +132,32 @@ export class OktopostTimeoutError extends OktopostError {
     super(message);
     this.name = 'OktopostTimeoutError';
   }
+}
+
+/** RFC 9110 IMF-fixdate, the HTTP date `Retry-After` may carry; `Date.parse` alone accepts values such as "1.5". */
+const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+
+export function parseRetryAfter(
+  value: string | null | undefined,
+  now: number = Date.now(),
+): number | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+
+  if (!HTTP_DATE.test(trimmed)) {
+    return undefined;
+  }
+
+  const retryAt = Date.parse(trimmed);
+  if (Number.isNaN(retryAt)) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.ceil((retryAt - now) / 1_000));
 }

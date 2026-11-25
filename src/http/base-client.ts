@@ -9,6 +9,8 @@ import {
   OktopostTimeoutError,
   OktopostNotFoundError,
   OktopostPermissionError,
+  rateLimitErrorFromResponse,
+  type OktopostApiErrors,
 } from './errors.js';
 import { SDK_VERSION } from '../version.js';
 import type { OktopostRequestInfo, OktopostResponseInfo } from '../types/common.js';
@@ -19,6 +21,7 @@ export interface HttpClientConfig {
   apiKey: string;
   timeout: number;
   maxRetries: number;
+  maxRateLimitWaitMs?: number;
   fetch?: typeof globalThis.fetch;
   onRequest?: (info: OktopostRequestInfo) => void;
   onResponse?: (info: OktopostResponseInfo) => void;
@@ -63,7 +66,7 @@ export class BaseHttpClient {
 
     return retryWithBackoff(
       async () => {
-        await this.rateLimiter.waitIfNeeded();
+        await this.rateLimiter.acquire();
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
@@ -113,10 +116,8 @@ export class BaseHttpClient {
         clearTimeout(timeoutId);
         const durationMs = Date.now() - startTime;
 
-        this.rateLimiter.recordRequest();
-
         if (response.status === 429) {
-          throw new OktopostRateLimitError();
+          throw await this.rateLimitError(response);
         }
 
         if (response.status === 401) {
@@ -133,13 +134,13 @@ export class BaseHttpClient {
 
         let data: T & {
           Result?: boolean;
-          Errors?: Record<string, { Error: string }>;
+          Errors?: OktopostApiErrors;
         };
 
         try {
           data = (await response.json()) as T & {
             Result?: boolean;
-            Errors?: Record<string, { Error: string }>;
+            Errors?: OktopostApiErrors;
           };
         } catch {
           throw new OktopostError(
@@ -155,6 +156,15 @@ export class BaseHttpClient {
           durationMs,
         });
 
+        const planLimitError = rateLimitErrorFromResponse(
+          response.status,
+          data,
+          response.headers.get('retry-after'),
+        );
+        if (planLimitError) {
+          throw planLimitError;
+        }
+
         if (data.Result === false) {
           throw OktopostApiError.fromResponse(response.status, data);
         }
@@ -169,7 +179,23 @@ export class BaseHttpClient {
 
         return data;
       },
-      { maxRetries: this.config.maxRetries },
+      { maxRetries: this.config.maxRetries, maxRateLimitWaitMs: this.config.maxRateLimitWaitMs },
+    );
+  }
+
+  /** A 429 body is plain text before the API answers it with JSON, so it is read as text and parsed when it can be. */
+  private async rateLimitError(response: Response): Promise<OktopostRateLimitError> {
+    const text = await response.text().catch(() => '');
+    let data: { Errors?: OktopostApiErrors } | undefined;
+    try {
+      data = JSON.parse(text) as { Errors?: OktopostApiErrors };
+    } catch {
+      data = undefined;
+    }
+
+    return (
+      rateLimitErrorFromResponse(429, data, response.headers.get('retry-after'), text) ??
+      new OktopostRateLimitError()
     );
   }
 
