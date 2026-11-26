@@ -114,6 +114,40 @@ describe('Oktopost', () => {
     expect(onResponse).toHaveBeenCalledTimes(1);
   });
 
+  it('passes maxRateLimitWaitMs to the retry loop', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: vi.fn().mockResolvedValue('Too Many Requests'),
+        headers: new Headers({ 'Retry-After': '90' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ Result: true, User: {}, Account: {} }),
+        headers: new Headers(),
+      });
+    const client = new Oktopost({
+      accountId: 'id',
+      apiKey: 'key',
+      fetch,
+      maxRetries: 1,
+      maxRateLimitWaitMs: 90_000,
+    });
+
+    vi.useFakeTimers();
+    try {
+      const promise = client.me();
+      await vi.advanceTimersByTimeAsync(90_000);
+      await promise;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('uses default timeout and maxRetries', () => {
     const client = new Oktopost({
       accountId: 'id',

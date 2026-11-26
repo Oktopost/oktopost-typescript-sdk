@@ -13,6 +13,11 @@ export {
   OktopostRateLimitError,
   OktopostTimeoutError,
 } from './http/errors.js';
+export type {
+  OktopostApiErrors,
+  OktopostRateLimitKind,
+  OktopostRateLimitErrorOptions,
+} from './http/errors.js';
 export { SDK_VERSION } from './version.js';
 
 export { AccountNamespace } from './resources/account/index.js';

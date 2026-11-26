@@ -6,6 +6,7 @@ import {
   OktopostNotFoundError,
   OktopostRateLimitError,
   OktopostTimeoutError,
+  type OktopostApiErrors,
 } from '../../../src/http/errors.js';
 
 describe('OktopostError', () => {
@@ -67,6 +68,29 @@ describe('OktopostApiError', () => {
       const error = OktopostApiError.fromResponse(500, { Errors: {} });
       expect(error.message).toBe('Unknown API error');
     });
+
+    it('uses the first field error when API.Error is missing', () => {
+      const error = OktopostApiError.fromResponse(400, {
+        Errors: { Name: { Required: 'Name is required' } },
+      });
+      expect(error.message).toBe('Name is required');
+    });
+
+    it('skips a field group that is not an object', () => {
+      const errors = { API: 'Rate limit', Name: { Required: 'Name is required' } };
+      const error = OktopostApiError.fromResponse(400, {
+        Errors: errors as unknown as OktopostApiErrors,
+      });
+      expect(error.message).toBe('Name is required');
+    });
+
+    it('keeps the default message for an Errors list', () => {
+      const errors = [{ Id: 'a', ErrorField: 'Email', ErrorMessage: 'Invalid email' }];
+      const error = OktopostApiError.fromResponse(400, {
+        Errors: errors as unknown as OktopostApiErrors,
+      });
+      expect(error.message).toBe('Unknown API error');
+    });
   });
 });
 
@@ -121,9 +145,12 @@ describe('OktopostRateLimitError', () => {
     expect(error.message).toBe('Rate limit exceeded');
     expect(error.statusCode).toBe(429);
     expect(error.name).toBe('OktopostRateLimitError');
+    expect(error.limit).toBe('burst');
+    expect(error.retryAfter).toBeUndefined();
   });
 
-  it('extends OktopostError', () => {
+  it('extends OktopostApiError', () => {
+    expect(new OktopostRateLimitError()).toBeInstanceOf(OktopostApiError);
     expect(new OktopostRateLimitError()).toBeInstanceOf(OktopostError);
   });
 });

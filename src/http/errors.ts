@@ -1,3 +1,9 @@
+import { parseRetryAfter } from './retry-after.js';
+
+export type OktopostApiErrors = Record<string, Record<string, string>>;
+
+export type OktopostRateLimitKind = 'user' | 'burst';
+
 export class OktopostError extends Error {
   readonly statusCode?: number;
 
@@ -9,20 +15,39 @@ export class OktopostError extends Error {
   }
 }
 
-export class OktopostApiError extends OktopostError {
-  readonly errors?: Record<string, { Error: string }>;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
-  constructor(message: string, statusCode: number, errors?: Record<string, { Error: string }>) {
+function firstErrorMessage(errors: unknown): string | undefined {
+  if (!isRecord(errors)) {
+    return undefined;
+  }
+  for (const fieldErrors of Object.values(errors)) {
+    if (!isRecord(fieldErrors)) {
+      continue;
+    }
+    for (const message of Object.values(fieldErrors)) {
+      if (typeof message === 'string' && message !== '') {
+        return message;
+      }
+    }
+  }
+  return undefined;
+}
+
+export class OktopostApiError extends OktopostError {
+  readonly errors?: OktopostApiErrors;
+
+  constructor(message: string, statusCode: number, errors?: OktopostApiErrors) {
     super(message, statusCode);
     this.name = 'OktopostApiError';
     this.errors = errors;
   }
 
-  static fromResponse(
-    statusCode: number,
-    data: { Errors?: Record<string, { Error: string }> },
-  ): OktopostApiError {
-    const apiErrorMessage = data.Errors?.API?.Error ?? 'Unknown API error';
+  static fromResponse(statusCode: number, data: { Errors?: OktopostApiErrors }): OktopostApiError {
+    const apiErrorMessage =
+      data.Errors?.API?.Error ?? firstErrorMessage(data.Errors) ?? 'Unknown API error';
     return new OktopostApiError(apiErrorMessage, statusCode, data.Errors);
   }
 }
@@ -48,10 +73,47 @@ export class OktopostNotFoundError extends OktopostApiError {
   }
 }
 
-export class OktopostRateLimitError extends OktopostError {
-  constructor(message: string = 'Rate limit exceeded') {
-    super(message, 429);
+export interface OktopostRateLimitErrorOptions {
+  statusCode?: number;
+  limit?: OktopostRateLimitKind;
+  retryAfter?: number;
+  errors?: OktopostApiErrors;
+}
+
+export class OktopostRateLimitError extends OktopostApiError {
+  /** `user`: the per-user API plan limit; `burst`: a short block after too many calls. */
+  readonly limit: OktopostRateLimitKind;
+  /** Seconds to wait before retrying, from the `Retry-After` header. */
+  readonly retryAfter?: number;
+
+  constructor(
+    message: string = 'Rate limit exceeded',
+    options: OktopostRateLimitErrorOptions = {},
+  ) {
+    super(message, options.statusCode ?? 429, options.errors);
     this.name = 'OktopostRateLimitError';
+    this.limit = options.limit ?? 'burst';
+    this.retryAfter = options.retryAfter;
+  }
+
+  static fromResponse(
+    statusCode: number,
+    data?: { Errors?: OktopostApiErrors },
+    retryAfterHeader?: string | null,
+    bodyText?: string,
+  ): OktopostRateLimitError {
+    const userLimitMessage = data?.Errors?.API?.RateLimit;
+    return new OktopostRateLimitError(
+      userLimitMessage ??
+        firstErrorMessage(data?.Errors) ??
+        (bodyText?.trim() || 'Too Many Requests'),
+      {
+        statusCode,
+        limit: userLimitMessage === undefined ? 'burst' : 'user',
+        retryAfter: parseRetryAfter(retryAfterHeader),
+        errors: data?.Errors,
+      },
+    );
   }
 }
 
